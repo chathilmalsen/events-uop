@@ -748,7 +748,7 @@ export default function App() {
       {/* Hero */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-10 pb-8">
         <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: THEME.goldDeep, fontFamily: "'IBM Plex Mono', monospace" }}>
-          Six faculties · one board
+          ALL FACULTIES · ONE BOARD
         </p>
         <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: "clamp(28px, 5vw, 44px)", color: THEME.ink, fontWeight: 600, lineHeight: 1.1, maxWidth: 720 }}>
           What's happening across campus, all in one place.
