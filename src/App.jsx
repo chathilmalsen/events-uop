@@ -3,7 +3,9 @@ import {
   Calendar, List as ListIcon, Search, Plus, X, MapPin, Clock,
   MessageCircle, ChevronLeft, ChevronRight, Trash2, Upload,
   Users, CalendarDays, AlertCircle, Edit, ShieldCheck, LogOut, User,
-  CalendarPlus, Download
+  CalendarPlus, Download, Heart, Bookmark, Share2, Eye, Flame,
+  ExternalLink, Sun, Moon, Monitor, Copy, Check, Reply, Bell,
+  SlidersHorizontal, Ticket, Globe, MapPinned, Timer, QrCode
 } from "lucide-react";
 
 // --- FIREBASE IMPORTS ---
@@ -17,7 +19,9 @@ import {
   doc,
   deleteDoc,
   updateDoc,
-  arrayUnion
+  arrayUnion,
+  arrayRemove,
+  increment
 } from "firebase/firestore";
 import {
   signInWithEmailAndPassword,
@@ -48,20 +52,58 @@ const FACULTIES = [
   { id: "veterniary and animal medicine", name: "Faculty of Veterinary Medicine", short: "VET", color: "#1E8A8A" },
 ];
 
-const facultyOf = (id) => FACULTIES.find((f) => f.id === id) || { name: "General", short: "GEN", color: "#5B6472" };
+// Feature 15: Event Categories
+const CATEGORIES = [
+  { id: "academic",      name: "Academic",         icon: "🎓", color: "#2E5C8A" },
+  { id: "sports",        name: "Sports",           icon: "⚽", color: "#1E8A5C" },
+  { id: "musical",       name: "Musical",          icon: "🎵", color: "#B8860B" },
+  { id: "workshop",      name: "Workshop",         icon: "💻", color: "#7A4FA3" },
+  { id: "competition",   name: "Competition",      icon: "🏆", color: "#B0334D" },
+  { id: "notice",        name: "Notice",           icon: "📢", color: "#5B6472" },
+  { id: "social",        name: "Social",           icon: "🎉", color: "#C9A227" },
+  { id: "charity",       name: "Charity",          icon: "❤️", color: "#B0334D" },
+  { id: "research",      name: "Research",         icon: "🔬", color: "#1E8A8A" },
+  { id: "environmental", name: "Environmental",    icon: "🌱", color: "#3D8B3D" },
+  { id: "volunteer",     name: "Volunteer",        icon: "🤝", color: "#6B2D3C" },
+  { id: "career",        name: "Career Fair",      icon: "💼", color: "#2E5C8A" },
+  { id: "industrial",    name: "Industrial Visit", icon: "🚌", color: "#A9820F" },
+  { id: "cultural",      name: "Cultural",         icon: "🎭", color: "#7A4FA3" },
+  { id: "awards",        name: "Awards",           icon: "🏅", color: "#C9A227" },
+  { id: "seminar",       name: "Seminar",          icon: "🧠", color: "#2E5C8A" },
+  { id: "exam",          name: "Exam & Academic",  icon: "📚", color: "#5B6472" },
+];
 
-const THEME = {
-  cream: "#FAF6EC",
-  card: "#FFFDF8",
-  ink: "#1B2740",
-  inkSoft: "#5B6472",
-  gold: "#C9A227",
-  goldDeep: "#A9820F",
-  line: "#E6DFCD",
+const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢"];
+
+const facultyOf = (id) => FACULTIES.find((f) => f.id === id) || { name: "General", short: "GEN", color: "#5B6472" };
+const categoryOf = (id) => CATEGORIES.find((c) => c.id === id) || null;
+
+// Feature 18: Dark Mode — light/dark palettes.
+// THEME is intentionally a mutable module-level binding (not React state):
+// every component in this file reads THEME.xxx at render time, so
+// reassigning it inside App() before children render repaints the whole
+// tree without having to thread a theme prop/context through every
+// component individually.
+const LIGHT_THEME = {
+  cream: "#FAF6EC", card: "#FFFDF8", ink: "#1B2740", inkSoft: "#5B6472",
+  gold: "#C9A227", goldDeep: "#A9820F", line: "#E6DFCD", danger: "#B0334D",
 };
+const DARK_THEME = {
+  cream: "#10141C", card: "#171C28", ink: "#EEF0F6", inkSoft: "#9AA3B8",
+  gold: "#E8C158", goldDeep: "#F0CE72", line: "#2A3040", danger: "#E5657F",
+};
+let THEME = LIGHT_THEME;
 
 function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+function getAnonId() {
+  let id = localStorage.getItem("cg_anon_id");
+  if (!id) {
+    id = uid();
+    localStorage.setItem("cg_anon_id", id);
+  }
+  return id;
 }
 
 function formatDateLabel(dateStr) {
@@ -101,6 +143,7 @@ function monthMatrix(year, month) {
   return cells;
 }
 function pad2(n) { return String(n).padStart(2, "0"); }
+function sameYMD(a, b) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
 
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
@@ -112,8 +155,6 @@ function fileToDataUrl(file) {
 }
 
 // --- .ics calendar export ---
-// Lets a student add an event straight into Google/Apple/Outlook calendar
-// instead of just seeing it on the board and forgetting about it.
 function icsDateTime(dateStr, timeStr) {
   const [y, m, d] = dateStr.split("-").map(Number);
   const [h, min] = (timeStr || "00:00").split(":").map(Number);
@@ -151,6 +192,43 @@ function downloadIcsForEvent(ev) {
   URL.revokeObjectURL(url);
 }
 
+// Feature: Event Notifications (browser-side reminders)
+// True push/email notifications need a server (Cloud Functions + FCM/
+// SendGrid) to fire while the tab is closed. This is the best in-browser
+// equivalent: it asks for Notification permission and schedules a local
+// timer while the tab stays open, then persists the choice so a reminder
+// set today still tries to fire if the tab is open again later.
+function msUntil(ev, minutesBefore) {
+  return eventDateTime(ev).getTime() - minutesBefore * 60 * 1000 - Date.now();
+}
+function scheduleLocalReminder(ev, minutesBefore) {
+  const delay = msUntil(ev, minutesBefore);
+  if (delay <= 0 || delay > 2 ** 31 - 1) return; // too far out / already past for setTimeout's max delay
+  setTimeout(() => {
+    if (Notification.permission === "granted") {
+      new Notification(`Starting soon: ${ev.title}`, {
+        body: `${ev.location} • ${formatTime(ev.startTime)}`,
+      });
+    }
+  }, delay);
+}
+function getReminders() {
+  try { return JSON.parse(localStorage.getItem("cg_reminders") || "{}"); } catch { return {}; }
+}
+function saveReminders(obj) { localStorage.setItem("cg_reminders", JSON.stringify(obj)); }
+
+// Feature 9: Save Events (bookmarks) — stored locally per device.
+function getBookmarks() {
+  try { return JSON.parse(localStorage.getItem("cg_bookmarks") || "[]"); } catch { return []; }
+}
+function saveBookmarks(arr) { localStorage.setItem("cg_bookmarks", JSON.stringify(arr)); }
+
+function shareUrlFor(ev) {
+  const url = new URL(window.location.href);
+  url.searchParams.set("event", ev.id);
+  return url.toString();
+}
+
 function FacultySeal({ faculty, size = "md" }) {
   const f = facultyOf(faculty);
   const dims = size === "sm" ? 28 : size === "lg" ? 56 : 38;
@@ -171,76 +249,233 @@ function FacultySeal({ faculty, size = "md" }) {
   );
 }
 
-function EventCard({ ev, onOpen }) {
-  const f = facultyOf(ev.faculty);
-  const past = isPastEvent(ev);
+function CategoryBadge({ category, size = "sm" }) {
+  const c = categoryOf(category);
+  if (!c) return null;
+  const fontSize = size === "sm" ? 10 : 11;
   return (
-    <button
-      onClick={() => onOpen(ev)}
-      className="text-left w-full rounded-2xl overflow-hidden transition-transform duration-150 active:scale-[0.99] hover:-translate-y-0.5"
+    <span
+      className="inline-flex items-center gap-1 font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full"
+      style={{ color: c.color, backgroundColor: c.color + "14", fontFamily: "'IBM Plex Mono', monospace", fontSize }}
+    >
+      <span>{c.icon}</span>{c.name}
+    </span>
+  );
+}
+
+// --- Countdown timer (Event Details) ---
+function CountdownTimer({ ev }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const diff = eventDateTime(ev).getTime() - now;
+  if (diff <= 0) return null;
+  const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const h = Math.floor((diff / (1000 * 60 * 60)) % 24);
+  const m = Math.floor((diff / (1000 * 60)) % 60);
+  const s = Math.floor((diff / 1000) % 60);
+  const Cell = ({ v, label }) => (
+    <div className="flex flex-col items-center px-2 py-1.5 rounded-lg" style={{ backgroundColor: THEME.ink, minWidth: 44 }}>
+      <span style={{ color: THEME.cream, fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 15 }}>{String(v).padStart(2, "0")}</span>
+      <span style={{ color: THEME.cream + "99", fontSize: 9, textTransform: "uppercase" }}>{label}</span>
+    </div>
+  );
+  return (
+    <div className="flex items-center gap-2 mt-3">
+      <Timer size={14} color={THEME.goldDeep} />
+      <div className="flex gap-1.5">
+        <Cell v={d} label="days" /><Cell v={h} label="hrs" /><Cell v={m} label="min" /><Cell v={s} label="sec" />
+      </div>
+    </div>
+  );
+}
+
+// --- Share menu (Feature 17: Social Sharing) ---
+function ShareMenu({ ev, onClose }) {
+  const [copied, setCopied] = useState(false);
+  const url = shareUrlFor(ev);
+  const text = encodeURIComponent(ev.title);
+  const encUrl = encodeURIComponent(url);
+  const links = [
+    { label: "WhatsApp", href: `https://wa.me/?text=${text}%20${encUrl}` },
+    { label: "Facebook", href: `https://www.facebook.com/sharer/sharer.php?u=${encUrl}` },
+    { label: "Telegram", href: `https://t.me/share/url?url=${encUrl}&text=${text}` },
+    { label: "X (Twitter)", href: `https://twitter.com/intent/tweet?text=${text}&url=${encUrl}` },
+    { label: "LinkedIn", href: `https://www.linkedin.com/sharing/share-offsite/?url=${encUrl}` },
+    { label: "Email", href: `mailto:?subject=${text}&body=${encUrl}` },
+  ];
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {}
+  };
+  const nativeShare = async () => {
+    if (navigator.share) {
+      try { await navigator.share({ title: ev.title, url }); onClose(); } catch {}
+    }
+  };
+  return (
+    <div
+      className="absolute right-0 top-full mt-2 z-20 rounded-2xl p-3 w-64"
+      style={{ backgroundColor: THEME.card, border: `1px solid ${THEME.line}`, boxShadow: "0 12px 32px rgba(0,0,0,0.18)" }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {typeof navigator !== "undefined" && navigator.share && (
+        <button onClick={nativeShare} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-semibold mb-1" style={{ color: THEME.ink, backgroundColor: THEME.gold + "22" }}>
+          <Share2 size={13} /> Share via device…
+        </button>
+      )}
+      <div className="grid grid-cols-2 gap-1.5 mb-2">
+        {links.map((l) => (
+          <a key={l.label} href={l.href} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-[11px] font-medium hover:bg-black/5" style={{ color: THEME.ink, border: `1px solid ${THEME.line}` }}>
+            <ExternalLink size={11} /> {l.label}
+          </a>
+        ))}
+      </div>
+      <button onClick={copyLink} className="w-full flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-lg text-xs font-semibold mb-2" style={{ color: THEME.ink, border: `1px solid ${THEME.line}` }}>
+        {copied ? <Check size={13} /> : <Copy size={13} />} {copied ? "Link copied!" : "Copy link"}
+      </button>
+      <div className="flex items-center gap-2 pt-2" style={{ borderTop: `1px solid ${THEME.line}` }}>
+        <img
+          alt="QR code"
+          className="rounded-md"
+          style={{ border: `1px solid ${THEME.line}` }}
+          width={64} height={64}
+          src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encUrl}`}
+        />
+        <p className="text-[10px] flex items-center gap-1" style={{ color: THEME.inkSoft }}><QrCode size={12} /> Scan to open on another device</p>
+      </div>
+    </div>
+  );
+}
+
+function EventCard({ ev, onOpen, isBookmarked, onToggleBookmark, isLiked, onToggleLike, isTrending }) {
+  const f = facultyOf(ev.faculty);
+  const c = categoryOf(ev.category);
+  const past = isPastEvent(ev);
+  const [shareOpen, setShareOpen] = useState(false);
+  const likeCount = (ev.likes || []).length;
+
+  return (
+    <div
+      className="text-left w-full rounded-2xl overflow-hidden transition-transform duration-150 relative"
       style={{
         backgroundColor: THEME.card, border: `1px solid ${THEME.line}`,
         borderLeft: `5px solid ${f.color}`, boxShadow: "0 1px 3px rgba(27,39,64,0.05)",
         opacity: past ? 0.62 : 1,
       }}
     >
-      <div className="flex flex-row gap-3 sm:gap-4 p-3.5 sm:p-4 items-start sm:items-center">
-        {ev.posterUrl ? (
-          <img
-            src={ev.posterUrl} alt=""
-            className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover flex-shrink-0"
-            style={{ border: `1px solid ${THEME.line}` }}
-            onError={(e) => { e.target.style.display = "none"; }}
-          />
-        ) : (
-          <div
-            className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: `linear-gradient(135deg, ${f.color}22, ${f.color}0a)` }}
-          >
-            <FacultySeal faculty={ev.faculty} size="md" />
-          </div>
-        )}
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <span
-              className="text-[9px] sm:text-[10px] font-semibold tracking-wide uppercase px-2 py-0.5 rounded-full truncate max-w-[180px]"
-              style={{ color: f.color, backgroundColor: f.color + "14", fontFamily: "'IBM Plex Mono', monospace" }}
+      <button onClick={() => onOpen(ev)} className="text-left w-full active:scale-[0.99] hover:-translate-y-0.5 transition-transform">
+        <div className="flex flex-row gap-3 sm:gap-4 p-3.5 sm:p-4 items-start sm:items-center">
+          {ev.posterUrl ? (
+            <img
+              src={ev.posterUrl} alt=""
+              className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover flex-shrink-0"
+              style={{ border: `1px solid ${THEME.line}` }}
+              onError={(e) => { e.target.style.display = "none"; }}
+            />
+          ) : (
+            <div
+              className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: `linear-gradient(135deg, ${f.color}22, ${f.color}0a)` }}
             >
-              {f.name}
-            </span>
-            {past && (
-              <span className="text-[9px] sm:text-[10px] uppercase tracking-wide font-semibold" style={{ color: THEME.inkSoft }}>Past</span>
-            )}
-          </div>
-          <h3 className="font-semibold leading-tight truncate pb-0.5" style={{ color: THEME.ink, fontFamily: "'Fraunces', serif", fontSize: 16 }}>
-            {ev.title}
-          </h3>
-          <p className="text-xs sm:text-sm mt-1 line-clamp-2" style={{ color: THEME.inkSoft }}>{ev.description}</p>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-[11px] sm:text-xs" style={{ color: THEME.inkSoft }}>
-            <span className="flex items-center gap-1"><Clock size={12} /> {formatTime(ev.startTime)}{ev.endTime ? ` – ${formatTime(ev.endTime)}` : ""}</span>
-            <span className="flex items-center gap-1 truncate max-w-[120px] sm:max-w-none"><MapPin size={12} /> {ev.location}</span>
-            <span className="flex items-center gap-1"><MessageCircle size={12} /> {(ev.comments || []).length}</span>
+              <FacultySeal faculty={ev.faculty} size="md" />
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+              <span
+                className="text-[9px] sm:text-[10px] font-semibold tracking-wide uppercase px-2 py-0.5 rounded-full truncate max-w-[150px]"
+                style={{ color: f.color, backgroundColor: f.color + "14", fontFamily: "'IBM Plex Mono', monospace" }}
+              >
+                {f.name}
+              </span>
+              {c && <CategoryBadge category={ev.category} />}
+              {isTrending && (
+                <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full flex items-center gap-0.5" style={{ color: "#B0334D", backgroundColor: "#B0334D18" }}>
+                  <Flame size={10} /> Trending
+                </span>
+              )}
+              {past && (
+                <span className="text-[9px] sm:text-[10px] uppercase tracking-wide font-semibold" style={{ color: THEME.inkSoft }}>Past</span>
+              )}
+            </div>
+            <h3 className="font-semibold leading-tight truncate pb-0.5" style={{ color: THEME.ink, fontFamily: "'Fraunces', serif", fontSize: 16 }}>
+              {ev.title}
+            </h3>
+            <p className="text-xs sm:text-sm mt-1 line-clamp-2" style={{ color: THEME.inkSoft }}>{ev.description}</p>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-[11px] sm:text-xs" style={{ color: THEME.inkSoft }}>
+              <span className="flex items-center gap-1"><Clock size={12} /> {formatTime(ev.startTime)}{ev.endTime ? ` – ${formatTime(ev.endTime)}` : ""}</span>
+              <span className="flex items-center gap-1 truncate max-w-[120px] sm:max-w-none"><MapPin size={12} /> {ev.location}</span>
+              <span className="flex items-center gap-1"><MessageCircle size={12} /> {(ev.comments || []).length}</span>
+              <span className="flex items-center gap-1"><Eye size={12} /> {ev.views || 0}</span>
+            </div>
           </div>
         </div>
+      </button>
+
+      {/* Quick actions row */}
+      <div className="flex items-center gap-1 px-3.5 sm:px-4 pb-3 pt-0.5 relative">
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggleLike(ev); }}
+          className="flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold"
+          style={{ color: isLiked ? THEME.danger : THEME.inkSoft, backgroundColor: isLiked ? THEME.danger + "14" : "transparent" }}
+        >
+          <Heart size={13} fill={isLiked ? THEME.danger : "none"} /> {likeCount}
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggleBookmark(ev.id); }}
+          className="flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold"
+          style={{ color: isBookmarked ? THEME.goldDeep : THEME.inkSoft, backgroundColor: isBookmarked ? THEME.gold + "22" : "transparent" }}
+        >
+          <Bookmark size={13} fill={isBookmarked ? THEME.goldDeep : "none"} /> {isBookmarked ? "Saved" : "Save"}
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); setShareOpen((v) => !v); }}
+          className="flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold"
+          style={{ color: THEME.inkSoft }}
+        >
+          <Share2 size={13} /> Share
+        </button>
+        {ev.registrationLink && (
+          <a
+            href={ev.registrationLink} target="_blank" rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold ml-auto"
+            style={{ color: "#fff", backgroundColor: f.color }}
+          >
+            <Ticket size={12} /> Register
+          </a>
+        )}
+        {shareOpen && (
+          <>
+            <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setShareOpen(false); }} />
+            <ShareMenu ev={ev} onClose={() => setShareOpen(false)} />
+          </>
+        )}
       </div>
-    </button>
+    </div>
   );
 }
 
 function Segmented({ options, value, onChange }) {
   return (
-    <div className="inline-flex rounded-full p-1 w-full sm:w-auto justify-between sm:justify-start" style={{ backgroundColor: "#EFE9D8" }}>
+    <div className="inline-flex rounded-full p-1 w-full sm:w-auto justify-between sm:justify-start" style={{ backgroundColor: "#EFE9D822" }}>
       {options.map((opt) => (
         <button
           key={opt.value}
           onClick={() => onChange(opt.value)}
-          className="flex-1 sm:flex-initial px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-colors text-center"
+          className="flex-1 sm:flex-initial px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-colors text-center flex items-center justify-center gap-1"
           style={{
             backgroundColor: value === opt.value ? THEME.ink : "transparent",
-            color: value === opt.value ? "#FAF6EC" : THEME.inkSoft,
+            color: value === opt.value ? THEME.cream : THEME.inkSoft,
           }}
         >
-          {opt.label}
+          {opt.icon} {opt.label}
         </button>
       ))}
     </div>
@@ -251,13 +486,13 @@ function Modal({ onClose, children, wide }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6 overflow-y-auto"
-      style={{ backgroundColor: "rgba(27,39,64,0.55)", animation: "fadeIn 0.15s ease-out" }}
+      style={{ backgroundColor: "rgba(10,14,22,0.6)", animation: "fadeIn 0.15s ease-out" }}
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         className={`w-full ${wide ? "max-w-2xl" : "max-w-lg"} rounded-t-3xl sm:rounded-3xl overflow-hidden max-h-[90vh] flex flex-col`}
-        style={{ backgroundColor: THEME.card, animation: "riseIn 0.18s ease-out", boxShadow: "0 20px 60px rgba(27,39,64,0.35)" }}
+        style={{ backgroundColor: THEME.card, animation: "riseIn 0.18s ease-out", boxShadow: "0 20px 60px rgba(0,0,0,0.45)" }}
       >
         {children}
       </div>
@@ -269,21 +504,24 @@ function Field({ label, children, required }) {
   return (
     <label className="block mb-3.5">
       <span className="block text-[11px] font-semibold uppercase tracking-wide mb-1" style={{ color: THEME.inkSoft }}>
-        {label}{required && <span style={{ color: "#B0334D" }}> *</span>}
+        {label}{required && <span style={{ color: THEME.danger }}> *</span>}
       </span>
       {children}
     </label>
   );
 }
 
-const inputStyle = {
-  width: "100%", padding: "9px 12px", borderRadius: 10,
-  border: `1px solid ${THEME.line}`, backgroundColor: "#FFFFFF",
-  color: THEME.ink, fontSize: 14, outline: "none",
-};
+function inputStyleFn() {
+  return {
+    width: "100%", padding: "9px 12px", borderRadius: 10,
+    border: `1px solid ${THEME.line}`, backgroundColor: THEME.cream === LIGHT_THEME.cream ? "#FFFFFF" : "#0E121A",
+    color: THEME.ink, fontSize: 14, outline: "none",
+  };
+}
 
 function SetUserModal({ onClose, onSave, currentName }) {
   const [name, setName] = useState(currentName || "");
+  const inputStyle = inputStyleFn();
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -318,7 +556,7 @@ function SetUserModal({ onClose, onSave, currentName }) {
         </Field>
         <div className="flex justify-end gap-2 mt-6">
           <button type="button" onClick={onClose} className="px-4 py-2 rounded-full text-sm font-medium" style={{ color: THEME.inkSoft }}>Cancel</button>
-          <button type="submit" className="px-5 py-2 rounded-full text-sm font-semibold" style={{ backgroundColor: THEME.ink, color: "#FAF6EC" }}>Save Name</button>
+          <button type="submit" className="px-5 py-2 rounded-full text-sm font-semibold" style={{ backgroundColor: THEME.ink, color: THEME.cream }}>Save Name</button>
         </div>
       </form>
     </Modal>
@@ -330,14 +568,13 @@ function LoginModal({ onClose, onLoginSuccess }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const inputStyle = inputStyleFn();
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
     setSubmitting(true);
     try {
-      // Real Firebase Authentication call — the password is checked by
-      // Firebase's servers, never compared against a string in this file.
       const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
       if (cred.user.email !== ADMIN_EMAIL) {
         await signOut(auth);
@@ -366,7 +603,7 @@ function LoginModal({ onClose, onLoginSuccess }) {
         </div>
 
         {error && (
-          <div className="flex items-center gap-2 text-xs mb-4 px-3 py-2 rounded-lg" style={{ backgroundColor: "#B0334D14", color: "#B0334D" }}>
+          <div className="flex items-center gap-2 text-xs mb-4 px-3 py-2 rounded-lg" style={{ backgroundColor: THEME.danger + "14", color: THEME.danger }}>
             <AlertCircle size={14} /> {error}
           </div>
         )}
@@ -395,7 +632,7 @@ function LoginModal({ onClose, onLoginSuccess }) {
         </Field>
         <div className="flex justify-end gap-2 mt-6">
           <button type="button" onClick={onClose} className="px-4 py-2 rounded-full text-sm font-medium" style={{ color: THEME.inkSoft }}>Cancel</button>
-          <button type="submit" disabled={submitting} className="px-5 py-2 rounded-full text-sm font-semibold disabled:opacity-60" style={{ backgroundColor: THEME.ink, color: "#FAF6EC" }}>
+          <button type="submit" disabled={submitting} className="px-5 py-2 rounded-full text-sm font-semibold disabled:opacity-60" style={{ backgroundColor: THEME.ink, color: THEME.cream }}>
             {submitting ? "Signing in…" : "Sign In"}
           </button>
         </div>
@@ -405,19 +642,25 @@ function LoginModal({ onClose, onLoginSuccess }) {
 }
 
 function AddOrEditEventModal({ onClose, onSubmit, initialData, currentUser }) {
+  const inputStyle = inputStyleFn();
   const [form, setForm] = useState(
     initialData || {
       title: "",
       faculty: "",
+      category: "",
       date: "",
       startTime: "",
       endTime: "",
       location: "",
       organizer: "",
+      contact: "",
       postedBy: currentUser || "",
       posterUrl: "",
       description: "",
       tags: [],
+      registrationLink: "",
+      priceType: "free",
+      mode: "offline",
     }
   );
   const [error, setError] = useState("");
@@ -478,7 +721,7 @@ function AddOrEditEventModal({ onClose, onSubmit, initialData, currentUser }) {
         </div>
         <div className="px-4 sm:px-6 overflow-y-auto flex-1">
           {error && (
-            <div className="flex items-center gap-2 text-xs mb-3 px-3 py-2 rounded-lg" style={{ backgroundColor: "#B0334D14", color: "#B0334D" }}>
+            <div className="flex items-center gap-2 text-xs mb-3 px-3 py-2 rounded-lg" style={{ backgroundColor: THEME.danger + "14", color: THEME.danger }}>
               <AlertCircle size={14} /> {error}
             </div>
           )}
@@ -492,8 +735,19 @@ function AddOrEditEventModal({ onClose, onSubmit, initialData, currentUser }) {
                 {FACULTIES.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
               </select>
             </Field>
+            <Field label="Category">
+              <select style={inputStyle} value={form.category} onChange={set("category")}>
+                <option value="">Select category</option>
+                {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+              </select>
+            </Field>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Date" required>
               <input type="date" style={inputStyle} value={form.date} onChange={set("date")} />
+            </Field>
+            <Field label="Organiser / Society" required>
+              <input style={inputStyle} value={form.organizer} onChange={set("organizer")} placeholder="e.g. Students' Union" />
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -508,11 +762,28 @@ function AddOrEditEventModal({ onClose, onSubmit, initialData, currentUser }) {
             <input style={inputStyle} value={form.location} onChange={set("location")} placeholder="e.g. Faculty of Arts – Lecture Hall 2" />
           </Field>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field label="Organiser / Society" required>
-              <input style={inputStyle} value={form.organizer} onChange={set("organizer")} placeholder="e.g. Students' Union" />
-            </Field>
             <Field label="Your Author Name" required>
               <input style={inputStyle} value={form.postedBy} onChange={set("postedBy")} placeholder="Your name (for edits)" />
+            </Field>
+            <Field label="Contact Details">
+              <input style={inputStyle} value={form.contact || ""} onChange={set("contact")} placeholder="Email or phone (optional)" />
+            </Field>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field label="Registration Link">
+              <input style={inputStyle} value={form.registrationLink || ""} onChange={set("registrationLink")} placeholder="https://…" />
+            </Field>
+            <Field label="Pricing & Mode">
+              <div className="flex gap-2">
+                <select style={inputStyle} value={form.priceType || "free"} onChange={set("priceType")}>
+                  <option value="free">Free</option>
+                  <option value="paid">Paid</option>
+                </select>
+                <select style={inputStyle} value={form.mode || "offline"} onChange={set("mode")}>
+                  <option value="offline">Offline</option>
+                  <option value="online">Online</option>
+                </select>
+              </div>
             </Field>
           </div>
           <Field label="Tags">
@@ -543,7 +814,7 @@ function AddOrEditEventModal({ onClose, onSubmit, initialData, currentUser }) {
                 type="button"
                 onClick={() => fileInputRef.current && fileInputRef.current.click()}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
-                style={{ backgroundColor: "#EFE9D8", color: THEME.ink }}
+                style={{ backgroundColor: THEME.line, color: THEME.ink }}
               >
                 <Upload size={13} /> {uploading ? "Uploading…" : "Choose Image"}
               </button>
@@ -552,7 +823,7 @@ function AddOrEditEventModal({ onClose, onSubmit, initialData, currentUser }) {
                 <img src={form.posterUrl} alt="Poster preview" className="w-10 h-10 rounded-lg object-cover" style={{ border: `1px solid ${THEME.line}` }} />
               )}
               {form.posterUrl && (
-                <button type="button" onClick={() => setForm((f) => ({ ...f, posterUrl: "" }))} className="text-xs font-semibold" style={{ color: "#B0334D" }}>
+                <button type="button" onClick={() => setForm((f) => ({ ...f, posterUrl: "" }))} className="text-xs font-semibold" style={{ color: THEME.danger }}>
                   Remove
                 </button>
               )}
@@ -570,7 +841,7 @@ function AddOrEditEventModal({ onClose, onSubmit, initialData, currentUser }) {
         </div>
         <div className="flex items-center justify-end gap-2 p-4 sm:px-6" style={{ borderTop: `1px solid ${THEME.line}` }}>
           <button type="button" onClick={onClose} className="px-4 py-2 rounded-full text-sm font-medium" style={{ color: THEME.inkSoft }}>Cancel</button>
-          <button type="submit" className="px-5 py-2 rounded-full text-sm font-semibold" style={{ backgroundColor: THEME.ink, color: "#FAF6EC" }}>
+          <button type="submit" className="px-5 py-2 rounded-full text-sm font-semibold" style={{ backgroundColor: THEME.ink, color: THEME.cream }}>
             {initialData ? "Save Changes" : "Post Event"}
           </button>
         </div>
@@ -579,11 +850,143 @@ function AddOrEditEventModal({ onClose, onSubmit, initialData, currentUser }) {
   );
 }
 
-function EventDetailModal({ ev, onClose, onComment, onDelete, onEdit, isAdmin, currentUser, onPromptSetUser }) {
+function ReminderMenu({ ev, onClose }) {
+  const [granted, setGranted] = useState(typeof Notification !== "undefined" && Notification.permission === "granted");
+  const reminders = getReminders();
+  const active = reminders[ev.id] || [];
+
+  const OPTIONS = [
+    { label: "1 Week Before", minutes: 7 * 24 * 60 },
+    { label: "1 Day Before", minutes: 24 * 60 },
+    { label: "12 Hours Before", minutes: 12 * 60 },
+    { label: "1 Hour Before", minutes: 60 },
+    { label: "15 Minutes Before", minutes: 15 },
+  ];
+
+  const toggle = async (minutes) => {
+    if (typeof Notification !== "undefined" && Notification.permission !== "granted") {
+      const perm = await Notification.requestPermission();
+      setGranted(perm === "granted");
+      if (perm !== "granted") return;
+    }
+    const all = getReminders();
+    const set = new Set(all[ev.id] || []);
+    if (set.has(minutes)) set.delete(minutes); else { set.add(minutes); scheduleLocalReminder(ev, minutes); }
+    all[ev.id] = Array.from(set);
+    saveReminders(all);
+    onClose(Array.from(set));
+  };
+
+  return (
+    <div
+      className="absolute right-0 top-full mt-2 z-20 rounded-2xl p-3 w-56"
+      style={{ backgroundColor: THEME.card, border: `1px solid ${THEME.line}`, boxShadow: "0 12px 32px rgba(0,0,0,0.18)" }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <p className="text-[10px] font-semibold uppercase tracking-wide mb-2" style={{ color: THEME.inkSoft }}>Remind me</p>
+      {!granted && (
+        <p className="text-[10px] mb-2 flex items-center gap-1" style={{ color: THEME.inkSoft }}>
+          <AlertCircle size={11} /> Browser notifications, tab must stay open
+        </p>
+      )}
+      <div className="flex flex-col gap-1">
+        {OPTIONS.map((o) => {
+          const isOn = active.includes(o.minutes);
+          return (
+            <button
+              key={o.minutes}
+              onClick={() => toggle(o.minutes)}
+              className="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium"
+              style={{ backgroundColor: isOn ? THEME.gold + "22" : "transparent", color: isOn ? THEME.goldDeep : THEME.ink }}
+            >
+              {o.label} {isOn && <Check size={13} />}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function CommentItem({ c, replies, onReply, onReact, anonId }) {
+  const [showReply, setShowReply] = useState(false);
+  const [replyText, setReplyText] = useState("");
+  const [replyName, setReplyName] = useState("");
+  const reactions = c.reactions || {};
+
+  return (
+    <div className="mb-3">
+      <div className="flex gap-2">
+        <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-semibold flex-shrink-0" style={{ backgroundColor: THEME.ink, color: THEME.cream }}>
+          {(c.author || "A").charAt(0).toUpperCase()}
+        </div>
+        <div className="min-w-0 text-xs flex-1">
+          <p><span className="font-semibold" style={{ color: THEME.ink }}>{c.author}</span></p>
+          <p style={{ color: THEME.ink }}>{c.text}</p>
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
+            {REACTION_EMOJIS.map((emo) => {
+              const list = reactions[emo] || [];
+              const active = list.includes(anonId);
+              return (
+                <button
+                  key={emo}
+                  onClick={() => onReact(c.id, emo)}
+                  className="text-[11px] px-1.5 py-0.5 rounded-full flex items-center gap-0.5"
+                  style={{ backgroundColor: active ? THEME.gold + "2a" : "transparent", border: `1px solid ${active ? THEME.goldDeep : THEME.line}` }}
+                >
+                  {emo} {list.length > 0 && <span style={{ color: THEME.inkSoft, fontSize: 10 }}>{list.length}</span>}
+                </button>
+              );
+            })}
+            <button onClick={() => setShowReply((v) => !v)} className="text-[11px] font-semibold flex items-center gap-0.5" style={{ color: THEME.inkSoft }}>
+              <Reply size={11} /> Reply
+            </button>
+          </div>
+          {showReply && (
+            <form
+              onSubmit={(e) => { e.preventDefault(); if (!replyName.trim() || !replyText.trim()) return; onReply(c.id, replyName.trim(), replyText.trim()); setReplyText(""); setShowReply(false); }}
+              className="flex flex-col sm:flex-row gap-1.5 mt-2"
+            >
+              <input value={replyName} onChange={(e) => setReplyName(e.target.value)} placeholder="Your name" style={{ ...inputStyleFn(), fontSize: 12, padding: "6px 10px" }} />
+              <input value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder={`Reply to ${c.author}…`} style={{ ...inputStyleFn(), fontSize: 12, padding: "6px 10px" }} />
+              <button type="submit" className="px-3 py-1.5 rounded-full text-[11px] font-semibold whitespace-nowrap" style={{ backgroundColor: THEME.ink, color: THEME.cream }}>Reply</button>
+            </form>
+          )}
+          {replies.length > 0 && (
+            <div className="mt-2 pl-3 space-y-2" style={{ borderLeft: `2px solid ${THEME.line}` }}>
+              {replies.map((r) => (
+                <div key={r.id} className="text-xs">
+                  <span className="font-semibold" style={{ color: THEME.ink }}>{r.author}</span>{" "}
+                  <span style={{ color: THEME.ink }}>{r.text}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EventDetailModal({ ev, onClose, onComment, onReact, onDelete, onEdit, isAdmin, currentUser, onPromptSetUser, isBookmarked, onToggleBookmark, isLiked, onToggleLike }) {
   const [name, setName] = useState(currentUser || "");
   const [text, setText] = useState("");
+  const [commentSort, setCommentSort] = useState("newest");
+  const [shareOpen, setShareOpen] = useState(false);
+  const [reminderOpen, setReminderOpen] = useState(false);
+  const anonId = getAnonId();
   const f = facultyOf(ev.faculty);
-  const comments = ev.comments || [];
+  const c = categoryOf(ev.category);
+  const allComments = ev.comments || [];
+  const topLevel = allComments.filter((cm) => !cm.parentId);
+  const repliesOf = (id) => allComments.filter((cm) => cm.parentId === id);
+  const sortedTop = [...topLevel].sort((a, b) => {
+    if (commentSort === "popular") {
+      const score = (x) => Object.values(x.reactions || {}).reduce((s, arr) => s + arr.length, 0);
+      return score(b) - score(a);
+    }
+    return (b.createdAt || 0) - (a.createdAt || 0);
+  });
   const tags = ev.tags || [];
 
   const isAuthor = Boolean(currentUser && ev.postedBy && currentUser.trim().toLowerCase() === ev.postedBy.trim().toLowerCase());
@@ -592,18 +995,23 @@ function EventDetailModal({ ev, onClose, onComment, onDelete, onEdit, isAdmin, c
   const submit = (e) => {
     e.preventDefault();
     if (!name.trim() || !text.trim()) return;
-    onComment(ev.id, { id: uid(), author: name.trim(), text: text.trim(), createdAt: Date.now() });
+    onComment(ev.id, { id: uid(), author: name.trim(), text: text.trim(), createdAt: Date.now(), parentId: null, reactions: {} });
     setText("");
   };
+  const submitReply = (parentId, author, replyText) => {
+    onComment(ev.id, { id: uid(), author, text: replyText, createdAt: Date.now(), parentId, reactions: {} });
+  };
+  const react = (commentId, emoji) => onReact(ev.id, commentId, emoji, anonId);
 
   return (
     <Modal onClose={onClose} wide>
       <div className="overflow-y-auto max-h-[85vh]">
         <div style={{ background: `linear-gradient(135deg, ${f.color}20, ${THEME.card})` }} className="p-4 sm:p-6 pb-4">
           <div className="flex items-start justify-between">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <FacultySeal faculty={ev.faculty} size="sm" />
-              <span className="text-[11px] font-semibold uppercase tracking-wide truncate max-w-[200px]" style={{ color: f.color, fontFamily: "'IBM Plex Mono', monospace" }}>{f.name}</span>
+              <span className="text-[11px] font-semibold uppercase tracking-wide truncate max-w-[160px]" style={{ color: f.color, fontFamily: "'IBM Plex Mono', monospace" }}>{f.name}</span>
+              {c && <CategoryBadge category={ev.category} />}
             </div>
             <div className="flex items-center gap-1">
               {canModify ? (
@@ -612,7 +1020,7 @@ function EventDetailModal({ ev, onClose, onComment, onDelete, onEdit, isAdmin, c
                     <Edit size={16} color={THEME.ink} />
                   </button>
                   <button onClick={() => onDelete(ev.id)} className="p-1.5 rounded-full hover:bg-black/5" title="Remove event">
-                    <Trash2 size={16} color="#B0334D" />
+                    <Trash2 size={16} color={THEME.danger} />
                   </button>
                 </>
               ) : (
@@ -635,27 +1043,78 @@ function EventDetailModal({ ev, onClose, onComment, onDelete, onEdit, isAdmin, c
             <span className="flex items-center gap-1"><Clock size={13} /> {formatTime(ev.startTime)}{ev.endTime ? ` – ${formatTime(ev.endTime)}` : ""}</span>
             <span className="flex items-center gap-1"><MapPin size={13} /> {ev.location}</span>
             <span className="flex items-center gap-1"><Users size={13} /> {ev.organizer}</span>
+            <span className="flex items-center gap-1"><Eye size={13} /> {ev.views || 0} views</span>
           </div>
-          {tags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mt-3">
-              {tags.map((tag) => (
-                <span key={tag} className="text-[10px] font-semibold px-2 py-1 rounded-full" style={{ backgroundColor: THEME.ink + "0d", color: THEME.ink }}>
-                  {tag}
-                </span>
-              ))}
+          <div className="flex flex-wrap gap-1.5 mt-3">
+            {ev.priceType && (
+              <span className="text-[10px] font-semibold px-2 py-1 rounded-full flex items-center gap-1" style={{ backgroundColor: THEME.ink + "0d", color: THEME.ink }}>
+                <Ticket size={11} /> {ev.priceType === "paid" ? "Paid" : "Free"}
+              </span>
+            )}
+            {ev.mode && (
+              <span className="text-[10px] font-semibold px-2 py-1 rounded-full flex items-center gap-1" style={{ backgroundColor: THEME.ink + "0d", color: THEME.ink }}>
+                {ev.mode === "online" ? <Globe size={11} /> : <MapPinned size={11} />} {ev.mode === "online" ? "Online" : "In person"}
+              </span>
+            )}
+            {tags.map((tag) => (
+              <span key={tag} className="text-[10px] font-semibold px-2 py-1 rounded-full" style={{ backgroundColor: THEME.ink + "0d", color: THEME.ink }}>
+                {tag}
+              </span>
+            ))}
+          </div>
+
+          {!isPastEvent(ev) && <CountdownTimer ev={ev} />}
+
+          <div className="flex flex-wrap items-center gap-2 mt-4">
+            <button
+              onClick={() => onToggleLike(ev)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
+              style={{ color: isLiked ? "#fff" : THEME.danger, backgroundColor: isLiked ? THEME.danger : THEME.danger + "14" }}
+            >
+              <Heart size={13} fill={isLiked ? "#fff" : "none"} /> {(ev.likes || []).length} Like{(ev.likes || []).length !== 1 ? "s" : ""}
+            </button>
+            <button
+              onClick={() => onToggleBookmark(ev.id)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
+              style={{ color: isBookmarked ? THEME.ink : THEME.goldDeep, backgroundColor: isBookmarked ? THEME.gold : THEME.gold + "22" }}
+            >
+              <Bookmark size={13} fill={isBookmarked ? THEME.ink : "none"} /> {isBookmarked ? "Saved" : "Save"}
+            </button>
+            <button onClick={() => downloadIcsForEvent(ev)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold" style={{ backgroundColor: THEME.line, color: THEME.ink }}>
+              <Download size={13} /> Add to Calendar
+            </button>
+            <div className="relative">
+              <button onClick={() => setReminderOpen((v) => !v)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold" style={{ backgroundColor: THEME.line, color: THEME.ink }}>
+                <Bell size={13} /> Remind Me
+              </button>
+              {reminderOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setReminderOpen(false)} />
+                  <ReminderMenu ev={ev} onClose={() => setReminderOpen(false)} />
+                </>
+              )}
             </div>
-          )}
-          <button
-            onClick={() => downloadIcsForEvent(ev)}
-            className="flex items-center gap-1.5 mt-3 px-3 py-1.5 rounded-full text-xs font-semibold"
-            style={{ backgroundColor: THEME.gold, color: THEME.ink }}
-          >
-            <Download size={13} /> Add to Calendar
-          </button>
+            <div className="relative">
+              <button onClick={() => setShareOpen((v) => !v)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold" style={{ backgroundColor: THEME.line, color: THEME.ink }}>
+                <Share2 size={13} /> Share
+              </button>
+              {shareOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setShareOpen(false)} />
+                  <ShareMenu ev={ev} onClose={() => setShareOpen(false)} />
+                </>
+              )}
+            </div>
+            {ev.registrationLink && (
+              <a href={ev.registrationLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ml-auto" style={{ backgroundColor: f.color, color: "#fff" }}>
+                <Ticket size={13} /> Register Now
+              </a>
+            )}
+          </div>
         </div>
 
         {ev.posterUrl && (
-          <div className="w-full bg-black/5 flex items-center justify-center p-2">
+          <div className="w-full bg-black/20 flex items-center justify-center p-2">
             <img src={ev.posterUrl} alt="" className="w-full max-h-[400px] object-contain rounded-lg" onError={(e) => { e.target.style.display = "none"; }} />
           </div>
         )}
@@ -663,31 +1122,43 @@ function EventDetailModal({ ev, onClose, onComment, onDelete, onEdit, isAdmin, c
         <div className="p-4 sm:p-6">
           <p style={{ color: THEME.ink, lineHeight: 1.5, fontSize: 14 }}>{ev.description || "No further details provided."}</p>
           <p className="text-xs mt-3" style={{ color: THEME.inkSoft }}>Posted by <strong style={{ color: THEME.ink }}>{ev.postedBy}</strong></p>
+          {ev.contact && <p className="text-xs mt-1" style={{ color: THEME.inkSoft }}>Contact: <strong style={{ color: THEME.ink }}>{ev.contact}</strong></p>}
+          {ev.location && (
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ev.location)}`}
+              target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs font-semibold mt-2"
+              style={{ color: THEME.goldDeep }}
+            >
+              <MapPinned size={13} /> View on Google Maps
+            </a>
+          )}
         </div>
 
         <div className="px-4 sm:px-6 pb-6" style={{ borderTop: `1px solid ${THEME.line}` }}>
-          <h3 className="text-xs font-semibold uppercase tracking-wide mt-4 mb-3 flex items-center gap-1.5" style={{ color: THEME.inkSoft }}>
-            <MessageCircle size={13} /> {comments.length} comment{comments.length !== 1 ? "s" : ""}
-          </h3>
-          <div className="space-y-2.5 mb-4 max-h-40 overflow-y-auto">
-            {comments.length === 0 && (
+          <div className="flex items-center justify-between mt-4 mb-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5" style={{ color: THEME.inkSoft }}>
+              <MessageCircle size={13} /> {topLevel.length} comment{topLevel.length !== 1 ? "s" : ""}
+            </h3>
+            <button
+              onClick={() => setCommentSort((s) => (s === "newest" ? "popular" : "newest"))}
+              className="text-[10px] font-semibold flex items-center gap-1 px-2 py-1 rounded-full"
+              style={{ color: THEME.inkSoft, border: `1px solid ${THEME.line}` }}
+            >
+              <SlidersHorizontal size={11} /> {commentSort === "newest" ? "Newest" : "Most liked"}
+            </button>
+          </div>
+          <div className="space-y-1 mb-4 max-h-56 overflow-y-auto pr-1">
+            {sortedTop.length === 0 && (
               <p className="text-xs" style={{ color: THEME.inkSoft }}>No comments yet.</p>
             )}
-            {comments.map((c) => (
-              <div key={c.id || uid()} className="flex gap-2">
-                <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-semibold flex-shrink-0" style={{ backgroundColor: THEME.ink, color: THEME.cream }}>
-                  {(c.author || "A").charAt(0).toUpperCase()}
-                </div>
-                <div className="min-w-0 text-xs">
-                  <p><span className="font-semibold" style={{ color: THEME.ink }}>{c.author}</span></p>
-                  <p style={{ color: THEME.ink }}>{c.text}</p>
-                </div>
-              </div>
+            {sortedTop.map((cm) => (
+              <CommentItem key={cm.id} c={cm} replies={repliesOf(cm.id)} onReply={submitReply} onReact={react} anonId={anonId} />
             ))}
           </div>
           <form onSubmit={submit} className="flex flex-col sm:flex-row gap-2">
-            <input style={{ ...inputStyle, fontSize: 13 }} placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} />
-            <input style={{ ...inputStyle, fontSize: 13 }} placeholder="Add a comment" value={text} onChange={(e) => setText(e.target.value)} />
+            <input style={{ ...inputStyleFn(), fontSize: 13 }} placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} />
+            <input style={{ ...inputStyleFn(), fontSize: 13 }} placeholder="Add a comment" value={text} onChange={(e) => setText(e.target.value)} />
             <button type="submit" className="px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap" style={{ backgroundColor: THEME.ink, color: THEME.cream }}>Post</button>
           </form>
         </div>
@@ -743,7 +1214,7 @@ function CalendarView({ events, month, setMonth, year, setYear, onOpen }) {
               onClick={() => setSelectedDate(dateStr)}
               className="aspect-square rounded-lg flex flex-col items-center justify-start pt-1 gap-0.5 transition-colors"
               style={{
-                backgroundColor: isSelected ? THEME.ink : isToday ? "#EFE9D8" : "transparent",
+                backgroundColor: isSelected ? THEME.ink : isToday ? THEME.gold + "22" : "transparent",
                 border: `1px solid ${isSelected ? THEME.ink : THEME.line}`,
               }}
             >
@@ -767,7 +1238,7 @@ function CalendarView({ events, month, setMonth, year, setYear, onOpen }) {
             <p className="text-xs" style={{ color: THEME.inkSoft }}>No events on this day.</p>
           ) : (
             <div className="space-y-2">
-              {dayList.map((e) => <EventCard key={e.id} ev={e} onOpen={onOpen} />)}
+              {dayList.map((e) => <EventCard key={e.id} ev={e} onOpen={onOpen} isBookmarked={false} onToggleBookmark={() => {}} isLiked={false} onToggleLike={() => {}} isTrending={false} />)}
             </div>
           )}
         </div>
@@ -776,13 +1247,42 @@ function CalendarView({ events, month, setMonth, year, setYear, onOpen }) {
   );
 }
 
+function ThemeToggle({ mode, setMode }) {
+  const opts = [
+    { m: "light", icon: <Sun size={13} /> },
+    { m: "dark", icon: <Moon size={13} /> },
+    { m: "system", icon: <Monitor size={13} /> },
+  ];
+  return (
+    <div className="flex items-center gap-0.5 rounded-full p-1" style={{ backgroundColor: THEME.line + "88" }}>
+      {opts.map((o) => (
+        <button
+          key={o.m}
+          onClick={() => setMode(o.m)}
+          className="p-1.5 rounded-full"
+          style={{ backgroundColor: mode === o.m ? THEME.ink : "transparent", color: mode === o.m ? THEME.cream : THEME.inkSoft }}
+          title={o.m}
+        >
+          {o.icon}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function App() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState("list");
+  const [view, setView] = useState("list"); // list | calendar | saved
   const [facultyFilter, setFacultyFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [timeFilter, setTimeFilter] = useState("upcoming");
+  const [quickDate, setQuickDate] = useState("any"); // any | today | tomorrow | week | month
+  const [priceFilter, setPriceFilter] = useState("any"); // any | free | paid
+  const [modeFilter, setModeFilter] = useState("any"); // any | online | offline
+  const [regOnly, setRegOnly] = useState(false);
   const [search, setSearch] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
 
   const [showAdd, setShowAdd] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
@@ -792,7 +1292,25 @@ export default function App() {
 
   const [isAdmin, setIsAdmin] = useState(false);
   const [currentUser, setCurrentUser] = useState(localStorage.getItem("cg_user_name") || "");
+  const [bookmarks, setBookmarks] = useState(getBookmarks());
 
+  // Feature 18: Dark Mode
+  const [themeMode, setThemeModeState] = useState(localStorage.getItem("cg_theme_mode") || "system");
+  const [systemDark, setSystemDark] = useState(
+    typeof window !== "undefined" && window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)").matches : false
+  );
+  useEffect(() => {
+    if (!window.matchMedia) return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = (e) => setSystemDark(e.matches);
+    mq.addEventListener ? mq.addEventListener("change", handler) : mq.addListener(handler);
+    return () => (mq.removeEventListener ? mq.removeEventListener("change", handler) : mq.removeListener(handler));
+  }, []);
+  const setThemeMode = (m) => { localStorage.setItem("cg_theme_mode", m); setThemeModeState(m); };
+  const effectiveDark = themeMode === "dark" || (themeMode === "system" && systemDark);
+  THEME = effectiveDark ? DARK_THEME : LIGHT_THEME; // reassigned before children render, see note above
+
+  const anonId = getAnonId();
   const now = new Date();
   const [calMonth, setCalMonth] = useState(now.getMonth());
   const [calYear, setCalYear] = useState(now.getFullYear());
@@ -802,9 +1320,53 @@ export default function App() {
     setCurrentUser(name);
   };
 
-  // Keep admin status in sync with real Firebase Auth state, so a refresh
-  // doesn't silently log the admin out, and no one can fake admin by
-  // poking at local React state in dev tools.
+  const toggleBookmark = (id) => {
+    setBookmarks((prev) => {
+      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      saveBookmarks(next);
+      return next;
+    });
+  };
+
+  const toggleLike = async (ev) => {
+    try {
+      const ref = doc(db, "events", ev.id);
+      const liked = (ev.likes || []).includes(anonId);
+      await updateDoc(ref, { likes: liked ? arrayRemove(anonId) : arrayUnion(anonId) });
+    } catch (error) {
+      console.error("Error toggling like:", error);
+    }
+  };
+
+  const recordView = async (ev) => {
+    try {
+      const seen = JSON.parse(sessionStorage.getItem("cg_viewed") || "[]");
+      if (seen.includes(ev.id)) return;
+      seen.push(ev.id);
+      sessionStorage.setItem("cg_viewed", JSON.stringify(seen));
+      await updateDoc(doc(db, "events", ev.id), { views: increment(1) });
+    } catch (error) {
+      console.error("Error recording view:", error);
+    }
+  };
+
+  const openEvent = (ev) => {
+    setSelectedEvent(ev);
+    recordView(ev);
+  };
+
+  // Open directly from a shared link (?event=<id>)
+  useEffect(() => {
+    if (loading || events.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("event");
+    if (id) {
+      const ev = events.find((e) => e.id === id);
+      if (ev) openEvent(ev);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setIsAdmin(Boolean(user && user.email === ADMIN_EMAIL));
@@ -839,6 +1401,9 @@ export default function App() {
       handleSaveUserName(ev.postedBy);
       await addDoc(collection(db, "events"), {
         ...ev,
+        views: 0,
+        likes: [],
+        comments: [],
         createdAt: Date.now(),
       });
       setShowAdd(false);
@@ -870,6 +1435,24 @@ export default function App() {
     }
   };
 
+  const reactToComment = async (eventId, commentId, emoji, uidStr) => {
+    try {
+      const ev = events.find((e) => e.id === eventId);
+      if (!ev) return;
+      const comments = (ev.comments || []).map((c) => {
+        if (c.id !== commentId) return c;
+        const reactions = { ...(c.reactions || {}) };
+        const list = new Set(reactions[emoji] || []);
+        if (list.has(uidStr)) list.delete(uidStr); else list.add(uidStr);
+        reactions[emoji] = Array.from(list);
+        return { ...c, reactions };
+      });
+      await updateDoc(doc(db, "events", eventId), { comments });
+    } catch (error) {
+      console.error("Error reacting to comment:", error);
+    }
+  };
+
   const deleteEvent = async (eventId) => {
     const ev = events.find((e) => e.id === eventId);
     if (!window.confirm(`Delete "${ev ? ev.title : "this event"}"?`)) return;
@@ -881,19 +1464,41 @@ export default function App() {
     }
   };
 
+  // Feature 14: Advanced Search
   const filtered = useMemo(() => {
+    const today = new Date();
     return events.filter((e) => {
+      if (view === "saved" && !bookmarks.includes(e.id)) return false;
       if (facultyFilter !== "all" && e.faculty !== facultyFilter) return false;
+      if (categoryFilter !== "all" && e.category !== categoryFilter) return false;
       if (timeFilter === "upcoming" && isPastEvent(e)) return false;
       if (timeFilter === "past" && !isPastEvent(e)) return false;
+      if (priceFilter !== "any" && (e.priceType || "free") !== priceFilter) return false;
+      if (modeFilter !== "any" && (e.mode || "offline") !== modeFilter) return false;
+      if (regOnly && !e.registrationLink) return false;
+      if (quickDate !== "any") {
+        const d = eventDateTime(e);
+        if (quickDate === "today" && !sameYMD(d, today)) return false;
+        if (quickDate === "tomorrow") {
+          const t = new Date(today); t.setDate(t.getDate() + 1);
+          if (!sameYMD(d, t)) return false;
+        }
+        if (quickDate === "week") {
+          const weekAhead = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+          if (d < today || d > weekAhead) return false;
+        }
+        if (quickDate === "month") {
+          if (d.getFullYear() !== today.getFullYear() || d.getMonth() !== today.getMonth()) return false;
+        }
+      }
       if (search.trim()) {
         const q = search.toLowerCase();
-        const hay = `${e.title} ${e.description} ${e.organizer} ${e.location}`.toLowerCase();
+        const hay = `${e.title} ${e.description} ${e.organizer} ${e.location} ${categoryOf(e.category)?.name || ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     }).sort((a, b) => eventDateTime(a) - eventDateTime(b));
-  }, [events, facultyFilter, timeFilter, search]);
+  }, [events, facultyFilter, categoryFilter, timeFilter, search, view, bookmarks, priceFilter, modeFilter, regOnly, quickDate]);
 
   const grouped = useMemo(() => {
     const months = [];
@@ -924,8 +1529,16 @@ export default function App() {
 
   const upcomingCount = useMemo(() => events.filter((e) => !isPastEvent(e)).length, [events]);
 
+  // Trending = meaningfully above the median engagement, so it adapts as the board grows.
+  const trendingIds = useMemo(() => {
+    const scored = events.map((e) => ({ id: e.id, score: (e.views || 0) + (e.likes || []).length * 5 }));
+    const sorted = [...scored].sort((a, b) => b.score - a.score);
+    const cutoff = Math.max(3, 1); // top few
+    return new Set(sorted.filter((s) => s.score > 0).slice(0, cutoff).map((s) => s.id));
+  }, [events]);
+
   return (
-    <div style={{ backgroundColor: THEME.cream, minHeight: "100vh", fontFamily: "'Inter', sans-serif" }}>
+    <div style={{ backgroundColor: THEME.cream, minHeight: "100vh", fontFamily: "'Inter', sans-serif", transition: "background-color 0.2s ease" }}>
       <style>{`
         .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -970,6 +1583,7 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
+            <ThemeToggle mode={themeMode} setMode={setThemeMode} />
             <button
               onClick={() => setShowUserModal(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors hover:bg-black/5"
@@ -983,7 +1597,7 @@ export default function App() {
               <button
                 onClick={handleAdminLogout}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold"
-                style={{ backgroundColor: "#B0334D14", color: "#B0334D" }}
+                style={{ backgroundColor: THEME.danger + "14", color: THEME.danger }}
               >
                 <LogOut size={13} />
                 <span>Admin Active</span>
@@ -1042,7 +1656,7 @@ export default function App() {
           </div>
 
           {/* Bottom Row */}
-          <div className="flex items-center justify-between pt-1 text-[10px]" style={{ borderTop: `1px border-dashed ${THEME.line}`, color: THEME.inkSoft }}>
+          <div className="flex items-center justify-between pt-1 text-[10px]" style={{ borderTop: `1px dashed ${THEME.line}`, color: THEME.inkSoft }}>
             <div className="flex items-center gap-1.5 truncate">
               <span>By Chathil Malsen</span>
               <span>•</span>
@@ -1056,6 +1670,7 @@ export default function App() {
             </div>
 
             <div className="flex items-center gap-1.5 flex-shrink-0">
+              <ThemeToggle mode={themeMode} setMode={setThemeMode} />
               <button
                 onClick={() => setShowUserModal(true)}
                 className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border"
@@ -1069,7 +1684,7 @@ export default function App() {
                 <button
                   onClick={handleAdminLogout}
                   className="p-1 rounded-full text-[10px]"
-                  style={{ backgroundColor: "#B0334D14", color: "#B0334D" }}
+                  style={{ backgroundColor: THEME.danger + "14", color: THEME.danger }}
                 >
                   <LogOut size={11} />
                 </button>
@@ -1104,16 +1719,17 @@ export default function App() {
           <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, color: THEME.ink, fontWeight: 600 }}>{upcomingCount}</span> <span className="text-xs" style={{ color: THEME.inkSoft }}>upcoming</span></div>
           <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, color: THEME.ink, fontWeight: 600 }}>{thisWeekCount}</span> <span className="text-xs" style={{ color: THEME.inkSoft }}>this week</span></div>
           <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, color: THEME.ink, fontWeight: 600 }}>{FACULTIES.length}</span> <span className="text-xs" style={{ color: THEME.inkSoft }}>faculties</span></div>
+          <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, color: THEME.ink, fontWeight: 600 }}>{bookmarks.length}</span> <span className="text-xs" style={{ color: THEME.inkSoft }}>saved by you</span></div>
         </div>
       </section>
 
       {/* Filter Controls */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-4">
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-2 mb-3 -mx-4 px-4 sm:mx-0 sm:px-0">
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-2 mb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
           <button
             onClick={() => setFacultyFilter("all")}
             className="px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap flex-shrink-0"
-            style={{ backgroundColor: facultyFilter === "all" ? THEME.ink : "#EFE9D8", color: facultyFilter === "all" ? THEME.cream : THEME.inkSoft }}
+            style={{ backgroundColor: facultyFilter === "all" ? THEME.ink : THEME.line + "88", color: facultyFilter === "all" ? THEME.cream : THEME.inkSoft }}
           >
             All faculties
           </button>
@@ -1133,32 +1749,104 @@ export default function App() {
           ))}
         </div>
 
+        {/* Category chips */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-2 mb-3 -mx-4 px-4 sm:mx-0 sm:px-0">
+          <button
+            onClick={() => setCategoryFilter("all")}
+            className="px-3 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap flex-shrink-0"
+            style={{ backgroundColor: categoryFilter === "all" ? THEME.goldDeep : THEME.line + "88", color: categoryFilter === "all" ? "#fff" : THEME.inkSoft }}
+          >
+            All categories
+          </button>
+          {CATEGORIES.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => setCategoryFilter(c.id)}
+              className="flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap flex-shrink-0"
+              style={{
+                backgroundColor: categoryFilter === c.id ? c.color : c.color + "14",
+                color: categoryFilter === c.id ? "#FFFFFF" : c.color,
+              }}
+            >
+              {c.icon} {c.name}
+            </button>
+          ))}
+        </div>
+
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           <div className="relative flex-1">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" color={THEME.inkSoft} />
             <input
               value={search} onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search events, venues..."
-              style={{ ...inputStyle, paddingLeft: 32 }}
+              placeholder="Search events, venues, categories..."
+              style={{ ...inputStyleFn(), paddingLeft: 32 }}
             />
           </div>
 
-          <div className="flex items-center justify-between sm:justify-start gap-2">
+          <div className="flex items-center justify-between sm:justify-start gap-2 flex-wrap">
             <Segmented
               value={timeFilter}
               onChange={setTimeFilter}
               options={[{ value: "upcoming", label: "Upcoming" }, { value: "past", label: "Past" }, { value: "all", label: "All" }]}
             />
-            <div className="flex items-center gap-1 rounded-full p-1" style={{ backgroundColor: "#EFE9D8" }}>
+            <button
+              onClick={() => setShowFilters((v) => !v)}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold"
+              style={{ backgroundColor: showFilters ? THEME.ink : THEME.line + "88", color: showFilters ? THEME.cream : THEME.inkSoft }}
+            >
+              <SlidersHorizontal size={13} /> Filters
+            </button>
+            <div className="flex items-center gap-1 rounded-full p-1" style={{ backgroundColor: THEME.line + "88" }}>
               <button onClick={() => setView("list")} className="px-2.5 py-1 rounded-full text-xs font-medium" style={{ backgroundColor: view === "list" ? THEME.ink : "transparent", color: view === "list" ? THEME.cream : THEME.inkSoft }}>
                 <ListIcon size={14} />
               </button>
               <button onClick={() => setView("calendar")} className="px-2.5 py-1 rounded-full text-xs font-medium" style={{ backgroundColor: view === "calendar" ? THEME.ink : "transparent", color: view === "calendar" ? THEME.cream : THEME.inkSoft }}>
                 <CalendarDays size={14} />
               </button>
+              <button onClick={() => setView("saved")} className="px-2.5 py-1 rounded-full text-xs font-medium flex items-center gap-1" style={{ backgroundColor: view === "saved" ? THEME.ink : "transparent", color: view === "saved" ? THEME.cream : THEME.inkSoft }}>
+                <Bookmark size={14} />
+              </button>
             </div>
           </div>
         </div>
+
+        {/* Feature 14: Advanced Search — extra filters panel */}
+        {showFilters && (
+          <div className="mt-3 p-3.5 rounded-2xl flex flex-col gap-3" style={{ backgroundColor: THEME.card, border: `1px solid ${THEME.line}` }}>
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: THEME.inkSoft }}>When</p>
+              <div className="flex flex-wrap gap-1.5">
+                {[["any", "Any time"], ["today", "Today"], ["tomorrow", "Tomorrow"], ["week", "This Week"], ["month", "This Month"]].map(([v, l]) => (
+                  <button key={v} onClick={() => setQuickDate(v)} className="px-3 py-1 rounded-full text-[11px] font-semibold" style={{ backgroundColor: quickDate === v ? THEME.ink : THEME.line + "88", color: quickDate === v ? THEME.cream : THEME.inkSoft }}>{l}</button>
+                ))}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-4">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: THEME.inkSoft }}>Price</p>
+                <div className="flex gap-1.5">
+                  {[["any", "Any"], ["free", "Free"], ["paid", "Paid"]].map(([v, l]) => (
+                    <button key={v} onClick={() => setPriceFilter(v)} className="px-3 py-1 rounded-full text-[11px] font-semibold" style={{ backgroundColor: priceFilter === v ? THEME.ink : THEME.line + "88", color: priceFilter === v ? THEME.cream : THEME.inkSoft }}>{l}</button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: THEME.inkSoft }}>Mode</p>
+                <div className="flex gap-1.5">
+                  {[["any", "Any"], ["offline", "In person"], ["online", "Online"]].map(([v, l]) => (
+                    <button key={v} onClick={() => setModeFilter(v)} className="px-3 py-1 rounded-full text-[11px] font-semibold" style={{ backgroundColor: modeFilter === v ? THEME.ink : THEME.line + "88", color: modeFilter === v ? THEME.cream : THEME.inkSoft }}>{l}</button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: THEME.inkSoft }}>Registration</p>
+                <button onClick={() => setRegOnly((v) => !v)} className="px-3 py-1 rounded-full text-[11px] font-semibold" style={{ backgroundColor: regOnly ? THEME.ink : THEME.line + "88", color: regOnly ? THEME.cream : THEME.inkSoft }}>
+                  {regOnly ? "Registration open ✓" : "Registration open"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Main Events Feed */}
@@ -1167,12 +1855,12 @@ export default function App() {
           <p className="text-xs py-10 text-center" style={{ color: THEME.inkSoft }}>Loading live events from cloud database…</p>
         ) : view === "calendar" ? (
           <div className="rounded-2xl p-4 sm:p-5" style={{ backgroundColor: THEME.card, border: `1px solid ${THEME.line}` }}>
-            <CalendarView events={filtered} month={calMonth} setMonth={setCalMonth} year={calYear} setYear={setCalYear} onOpen={setSelectedEvent} />
+            <CalendarView events={filtered} month={calMonth} setMonth={setCalMonth} year={calYear} setYear={setCalYear} onOpen={openEvent} />
           </div>
         ) : grouped.length === 0 ? (
           <div className="text-center py-12">
-            <p style={{ fontFamily: "'Fraunces', serif", fontSize: 18, color: THEME.ink }}>Nothing found</p>
-            <p className="text-xs mt-1" style={{ color: THEME.inkSoft }}>Try adjusting your filters or search.</p>
+            <p style={{ fontFamily: "'Fraunces', serif", fontSize: 18, color: THEME.ink }}>{view === "saved" ? "No saved events yet" : "Nothing found"}</p>
+            <p className="text-xs mt-1" style={{ color: THEME.inkSoft }}>{view === "saved" ? "Tap the Save button on any event to bookmark it." : "Try adjusting your filters or search."}</p>
           </div>
         ) : (
           <div className="space-y-8">
@@ -1186,7 +1874,14 @@ export default function App() {
                         <p className="text-xs sm:text-sm font-semibold" style={{ color: THEME.ink }}>{d.label}</p>
                       </div>
                       <div className="flex-1 space-y-2.5">
-                        {d.events.map((e) => <EventCard key={e.id} ev={e} onOpen={setSelectedEvent} />)}
+                        {d.events.map((e) => (
+                          <EventCard
+                            key={e.id} ev={e} onOpen={openEvent}
+                            isBookmarked={bookmarks.includes(e.id)} onToggleBookmark={toggleBookmark}
+                            isLiked={(e.likes || []).includes(anonId)} onToggleLike={toggleLike}
+                            isTrending={trendingIds.has(e.id) && !isPastEvent(e)}
+                          />
+                        ))}
                       </div>
                     </div>
                   ))}
@@ -1213,11 +1908,16 @@ export default function App() {
           ev={events.find((e) => e.id === selectedEvent.id) || selectedEvent}
           onClose={() => setSelectedEvent(null)}
           onComment={addComment}
+          onReact={reactToComment}
           onDelete={deleteEvent}
           onEdit={(ev) => setEditingEvent(ev)}
           isAdmin={isAdmin}
           currentUser={currentUser}
           onPromptSetUser={() => setShowUserModal(true)}
+          isBookmarked={bookmarks.includes(selectedEvent.id)}
+          onToggleBookmark={toggleBookmark}
+          isLiked={((events.find((e) => e.id === selectedEvent.id) || selectedEvent).likes || []).includes(anonId)}
+          onToggleLike={toggleLike}
         />
       )}
     </div>
