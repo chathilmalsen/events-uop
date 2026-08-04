@@ -35,78 +35,7 @@ function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
-const SEED_EVENTS = [
-  {
-    id: uid(), title: "Blood Donation Camp 2026", faculty: "medicine",
-    date: "2026-08-08", startTime: "09:00", endTime: "15:00",
-    location: "Faculty of Medicine Premises", organizer: "Medical Students' Union",
-    postedBy: "Nimali S.", posterUrl: "",
-    description: "Annual blood donation drive open to all students, staff, and academic and non-academic personnel. Refreshments provided. Walk-ins welcome, no appointment needed.",
-    createdAt: Date.now() - 90000000,
-    comments: [
-      { id: uid(), author: "Kasun R.", text: "Donated last year, well organised. Bring your NIC!", createdAt: Date.now() - 80000000 },
-    ],
-  },
-  {
-    id: uid(), title: "Free Dental Screening Camp", faculty: "dental",
-    date: "2026-08-09", startTime: "08:30", endTime: "12:30",
-    location: "Dental Hospital Complex", organizer: "Dental Students' Association",
-    postedBy: "Ishara P.", posterUrl: "",
-    description: "Free oral health screening, cleaning advice, and consultations for the general university community, conducted by final-year dental students under staff supervision.",
-    createdAt: Date.now() - 70000000, comments: [],
-  },
-  {
-    id: uid(), title: "IEEE Robotics Showcase", faculty: "engineering",
-    date: "2026-08-10", startTime: "14:00", endTime: "17:00",
-    location: "Faculty of Engineering – New Auditorium", organizer: "IEEE Student Branch",
-    postedBy: "Dilshan W.", posterUrl: "",
-    description: "Final-year and undergraduate robotics projects on display, including autonomous line-followers and a robotic arm demo. Open to all faculties.",
-    createdAt: Date.now() - 60000000,
-    comments: [
-      { id: uid(), author: "Amaya J.", text: "Is registration needed to enter, or can we just walk in?", createdAt: Date.now() - 50000000 },
-    ],
-  },
-  {
-    id: uid(), title: "Moot Court Competition – Grand Finale", faculty: "law",
-    date: "2026-08-16", startTime: "13:00", endTime: "16:00",
-    location: "Faculty of Law – Moot Court Hall", organizer: "Law Students' Society",
-    postedBy: "Tharindu K.", posterUrl: "",
-    description: "The final round of this year's inter-batch moot court competition, argued before a panel of visiting judges. Open seating for spectators.",
-    createdAt: Date.now() - 50000000, comments: [],
-  },
-  {
-    id: uid(), title: "Career Fair – Meet the Employers", faculty: "commerce",
-    date: "2026-08-14", startTime: "10:00", endTime: "16:00",
-    location: "Faculty of Commerce Grounds", organizer: "Career Guidance Unit",
-    postedBy: "Sanduni F.", posterUrl: "",
-    description: "Over twenty companies on campus for internship and graduate hiring conversations. Bring printed CVs. Formal dress recommended.",
-    createdAt: Date.now() - 40000000, comments: [],
-  },
-  {
-    id: uid(), title: "Guest Lecture: AI in Structural Engineering", faculty: "engineering",
-    date: "2026-08-25", startTime: "15:00", endTime: "16:30",
-    location: "Engineering Faculty – Lecture Hall B", organizer: "Dept. of Civil Engineering",
-    postedBy: "Prof. Ranatunga", posterUrl: "",
-    description: "A visiting lecture on machine-learning approaches to structural load prediction and failure analysis, open to all engineering undergraduates and postgraduates.",
-    createdAt: Date.now() - 30000000, comments: [],
-  },
-  {
-    id: uid(), title: "Inter-Faculty Drama Festival – Finals Night", faculty: "arts",
-    date: "2026-08-20", startTime: "18:30", endTime: "21:30",
-    location: "Open Air Theatre", organizer: "Dept. of Fine Arts",
-    postedBy: "Chamodi L.", posterUrl: "",
-    description: "The closing night of the drama festival, with the top three faculty productions competing for the annual trophy. Free entry, seating from 6pm.",
-    createdAt: Date.now() - 20000000, comments: [],
-  },
-  {
-    id: uid(), title: "Cultural Night – Ranga Ras 2026", faculty: "arts",
-    date: "2026-09-05", startTime: "18:00", endTime: "22:00",
-    location: "University Grounds", organizer: "Students' Union",
-    postedBy: "Students' Union", posterUrl: "",
-    description: "The university's biggest annual cultural night, featuring dance, music, and drama items from every faculty, followed by a guest artist performance.",
-    createdAt: Date.now() - 10000000, comments: [],
-  },
-];
+const SEED_EVENTS = [];
 
 function formatDateLabel(dateStr) {
   const d = new Date(dateStr + "T00:00:00");
