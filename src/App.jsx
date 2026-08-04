@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Calendar, List as ListIcon, Search, Plus, X, MapPin, Clock,
   MessageCircle, ChevronLeft, ChevronRight, Trash2, Upload,
-  Users, CalendarDays, AlertCircle
+  Users, CalendarDays, AlertCircle, Edit, ShieldCheck, UserCheck, LogOut
 } from "lucide-react";
 
 // --- FIREBASE IMPORTS ---
@@ -18,6 +18,9 @@ import {
   updateDoc, 
   arrayUnion 
 } from "firebase/firestore";
+
+const ADMIN_EMAIL = "ktchathilmalsencm@gmail.com";
+const ADMIN_PASS = "kt1234@CM";
 
 const FACULTIES = [
   { id: "engineering", name: "Faculty of Engineering", short: "ENG", color: "#2E5C8A" },
@@ -225,8 +228,56 @@ const inputStyle = {
   color: THEME.ink, fontSize: 14, outline: "none",
 };
 
-function AddEventModal({ onClose, onSubmit }) {
-  const [form, setForm] = useState({
+// --- ADMIN LOGIN MODAL ---
+function LoginModal({ onClose, onLoginSuccess }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    if (email.trim() === ADMIN_EMAIL && password === ADMIN_PASS) {
+      onLoginSuccess();
+      onClose();
+    } else {
+      setError("Invalid admin email or password.");
+    }
+  };
+
+  return (
+    <Modal onClose={onClose}>
+      <form onSubmit={handleLogin} className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 style={{ fontFamily: "'Fraunces', serif", color: THEME.ink, fontSize: 22, fontWeight: 600 }} className="flex items-center gap-2">
+            <ShieldCheck size={22} color={THEME.gold} /> Admin Login
+          </h2>
+          <button type="button" onClick={onClose} className="p-1.5 rounded-full hover:bg-black/5">
+            <X size={18} color={THEME.inkSoft} />
+          </button>
+        </div>
+        {error && (
+          <div className="flex items-center gap-2 text-sm mb-4 px-3 py-2 rounded-lg" style={{ backgroundColor: "#B0334D14", color: "#B0334D" }}>
+            <AlertCircle size={15} /> {error}
+          </div>
+        )}
+        <Field label="Admin Email" required>
+          <input type="email" style={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="ktchathilmalsencm@gmail.com" />
+        </Field>
+        <Field label="Password" required>
+          <input type="password" style={inputStyle} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+        </Field>
+        <div className="flex justify-end gap-2 mt-6">
+          <button type="button" onClick={onClose} className="px-4 py-2 rounded-full text-sm font-medium" style={{ color: THEME.inkSoft }}>Cancel</button>
+          <button type="submit" className="px-5 py-2 rounded-full text-sm font-semibold" style={{ backgroundColor: THEME.ink, color: "#FAF6EC" }}>Sign In</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+// --- ADD / EDIT EVENT MODAL ---
+function AddOrEditEventModal({ onClose, onSubmit, initialData }) {
+  const [form, setForm] = useState(initialData || {
     title: "", faculty: "", date: "", startTime: "", endTime: "",
     location: "", organizer: "", postedBy: "", posterUrl: "", description: "",
   });
@@ -264,22 +315,21 @@ function AddEventModal({ onClose, onSubmit }) {
       setError("Please fill in all required fields.");
       return;
     }
-    onSubmit({ ...form, comments: [] });
+    onSubmit(form);
   };
 
   return (
     <Modal onClose={onClose} wide>
       <form onSubmit={submit} className="max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 pt-6 pb-2">
-          <h2 style={{ fontFamily: "'Fraunces', serif", color: THEME.ink, fontSize: 22, fontWeight: 600 }}>Post an event</h2>
+          <h2 style={{ fontFamily: "'Fraunces', serif", color: THEME.ink, fontSize: 22, fontWeight: 600 }}>
+            {initialData ? "Edit event" : "Post an event"}
+          </h2>
           <button type="button" onClick={onClose} className="p-1.5 rounded-full hover:bg-black/5">
             <X size={18} color={THEME.inkSoft} />
           </button>
         </div>
         <div className="px-6 pb-2">
-          <p className="text-sm mb-4" style={{ color: THEME.inkSoft }}>
-            Let the campus know what's happening. This appears on the notice board for everyone right away.
-          </p>
           {error && (
             <div className="flex items-center gap-2 text-sm mb-4 px-3 py-2 rounded-lg" style={{ backgroundColor: "#B0334D14", color: "#B0334D" }}>
               <AlertCircle size={15} /> {error}
@@ -358,18 +408,25 @@ function AddEventModal({ onClose, onSubmit }) {
         </div>
         <div className="flex items-center justify-end gap-2 px-6 py-4" style={{ borderTop: `1px solid ${THEME.line}` }}>
           <button type="button" onClick={onClose} className="px-4 py-2 rounded-full text-sm font-medium" style={{ color: THEME.inkSoft }}>Cancel</button>
-          <button type="submit" className="px-5 py-2 rounded-full text-sm font-semibold" style={{ backgroundColor: THEME.ink, color: "#FAF6EC" }}>Post event</button>
+          <button type="submit" className="px-5 py-2 rounded-full text-sm font-semibold" style={{ backgroundColor: THEME.ink, color: "#FAF6EC" }}>
+            {initialData ? "Save changes" : "Post event"}
+          </button>
         </div>
       </form>
     </Modal>
   );
 }
 
-function EventDetailModal({ ev, onClose, onComment, onDelete }) {
-  const [name, setName] = useState("");
+// --- EVENT DETAILS MODAL (WITH FULL IMAGE & EDIT/DELETE) ---
+function EventDetailModal({ ev, onClose, onComment, onDelete, onEdit, isAdmin, currentUser }) {
+  const [name, setName] = useState(currentUser || "");
   const [text, setText] = useState("");
   const f = facultyOf(ev.faculty);
   const comments = ev.comments || [];
+
+  // Check if current user is admin OR author of this specific event
+  const isAuthor = currentUser && ev.postedBy && currentUser.trim().toLowerCase() === ev.postedBy.trim().toLowerCase();
+  const canModify = isAdmin || isAuthor;
 
   const submit = (e) => {
     e.preventDefault();
@@ -388,9 +445,16 @@ function EventDetailModal({ ev, onClose, onComment, onDelete }) {
               <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: f.color, fontFamily: "'IBM Plex Mono', monospace" }}>{f.name}</span>
             </div>
             <div className="flex items-center gap-1">
-              <button onClick={() => onDelete(ev.id)} className="p-1.5 rounded-full hover:bg-black/5" title="Remove event">
-                <Trash2 size={17} color={THEME.inkSoft} />
-              </button>
+              {canModify && (
+                <>
+                  <button onClick={() => onEdit(ev)} className="p-1.5 rounded-full hover:bg-black/5" title="Edit event">
+                    <Edit size={17} color={THEME.ink} />
+                  </button>
+                  <button onClick={() => onDelete(ev.id)} className="p-1.5 rounded-full hover:bg-black/5" title="Remove event">
+                    <Trash2 size={17} color="#B0334D" />
+                  </button>
+                </>
+              )}
               <button onClick={onClose} className="p-1.5 rounded-full hover:bg-black/5">
                 <X size={18} color={THEME.inkSoft} />
               </button>
@@ -405,13 +469,16 @@ function EventDetailModal({ ev, onClose, onComment, onDelete }) {
           </div>
         </div>
 
+        {/* Display FULL IMAGE without cropping */}
         {ev.posterUrl && (
-          <img src={ev.posterUrl} alt="" className="w-full max-h-72 object-cover" onError={(e) => { e.target.style.display = "none"; }} />
+          <div className="w-full bg-black/5 flex items-center justify-center p-2">
+            <img src={ev.posterUrl} alt="" className="w-full max-h-[500px] object-contain rounded-lg" onError={(e) => { e.target.style.display = "none"; }} />
+          </div>
         )}
 
         <div className="px-6 py-5">
           <p style={{ color: THEME.ink, lineHeight: 1.6, fontSize: 15 }}>{ev.description || "No further details provided."}</p>
-          <p className="text-xs mt-3" style={{ color: THEME.inkSoft }}>Posted by {ev.postedBy}</p>
+          <p className="text-xs mt-3" style={{ color: THEME.inkSoft }}>Posted by <strong style={{ color: THEME.ink }}>{ev.postedBy}</strong></p>
         </div>
 
         <div className="px-6 pb-6" style={{ borderTop: `1px solid ${THEME.line}` }}>
@@ -534,8 +601,17 @@ export default function App() {
   const [facultyFilter, setFacultyFilter] = useState("all");
   const [timeFilter, setTimeFilter] = useState("upcoming");
   const [search, setSearch] = useState("");
+  
+  // Modals
   const [showAdd, setShowAdd] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
+
+  // User State
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [currentUser, setCurrentUser] = useState(localStorage.getItem("cg_user_name") || "");
+
   const now = new Date();
   const [calMonth, setCalMonth] = useState(now.getMonth());
   const [calYear, setCalYear] = useState(now.getFullYear());
@@ -560,6 +636,8 @@ export default function App() {
 
   const addEvent = async (ev) => {
     try {
+      localStorage.setItem("cg_user_name", ev.postedBy);
+      setCurrentUser(ev.postedBy);
       await addDoc(collection(db, "events"), {
         ...ev,
         createdAt: Date.now(),
@@ -568,6 +646,17 @@ export default function App() {
     } catch (error) {
       console.error("Error adding event:", error);
       alert("Could not save event to cloud. Please try again.");
+    }
+  };
+
+  const updateEvent = async (ev) => {
+    try {
+      const eventRef = doc(db, "events", ev.id);
+      await updateDoc(eventRef, ev);
+      setEditingEvent(null);
+      setSelectedEvent(null);
+    } catch (error) {
+      console.error("Error updating event:", error);
     }
   };
 
@@ -655,48 +744,68 @@ export default function App() {
       <header className="sticky top-0 z-40 backdrop-blur" style={{ backgroundColor: THEME.cream + "E8", borderBottom: `1px solid ${THEME.line}` }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="flex items-center gap-2.5">
-              <img 
-                src="/uop-logo.png" 
-                alt="University Logo" 
-                className="w-9 h-9 object-contain" 
-              />
-              <div>
-                <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 600 }}>University Events</p>
-                <p style={{ fontSize: 10.5, color: THEME.inkSoft, letterSpacing: '0.05em' }}>THE CAMPUS NOTICE BOARD</p>
-                <div className="flex items-center gap-1.5 text-[11px] mt-0.5" style={{ color: THEME.inkSoft }}>
-                  <span>By Chathil Malsen</span>
-                  <span>•</span>
-                  <a 
-                    href="https://www.linkedin.com/in/chathilmalsen" 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="hover:underline font-medium"
-                    style={{ color: THEME.gold }}
-                  >
-                    LinkedIn
-                  </a>
-                  <span>•</span>
-                  <a 
-                    href="https://www.instagram.com/chathilmkt" 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="hover:underline font-medium"
-                    style={{ color: THEME.gold }}
-                  >
-                    Instagram
-                  </a>
-                </div>
+            <img 
+              src="/uop-logo.png" 
+              alt="University Logo" 
+              className="w-9 h-9 object-contain" 
+            />
+            <div>
+              <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 600 }}>University Events</p>
+              <p style={{ fontSize: 10.5, color: THEME.inkSoft, letterSpacing: '0.05em' }}>THE CAMPUS NOTICE BOARD</p>
+              <div className="flex items-center gap-1.5 text-[11px] mt-0.5" style={{ color: THEME.inkSoft }}>
+                <span>By Chathil Malsen</span>
+                <span>•</span>
+                <a 
+                  href="https://www.linkedin.com/in/chathilmalsen" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="hover:underline font-medium"
+                  style={{ color: THEME.gold }}
+                >
+                  LinkedIn
+                </a>
+                <span>•</span>
+                <a 
+                  href="https://www.instagram.com/chathilmkt" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="hover:underline font-medium"
+                  style={{ color: THEME.gold }}
+                >
+                  Instagram
+                </a>
               </div>
             </div>
           </div>
-          <button
-            onClick={() => setShowAdd(true)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold"
-            style={{ backgroundColor: THEME.gold, color: THEME.ink }}
-          >
-            <Plus size={16} /> <span className="hidden sm:inline">Post event</span>
-          </button>
+
+          <div className="flex items-center gap-2">
+            {isAdmin ? (
+              <button
+                onClick={() => setIsAdmin(false)}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold"
+                style={{ backgroundColor: "#B0334D14", color: "#B0334D" }}
+                title="Sign out of Admin mode"
+              >
+                <LogOut size={13} /> Admin Signed In
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowLogin(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
+                style={{ backgroundColor: "#EFE9D8", color: THEME.ink }}
+              >
+                <ShieldCheck size={14} /> Admin
+              </button>
+            )}
+
+            <button
+              onClick={() => setShowAdd(true)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold"
+              style={{ backgroundColor: THEME.gold, color: THEME.ink }}
+            >
+              <Plus size={16} /> <span className="hidden sm:inline">Post event</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -777,7 +886,7 @@ export default function App() {
           <p className="text-sm py-10 text-center" style={{ color: THEME.inkSoft }}>Loading the board from cloud database…</p>
         ) : view === "calendar" ? (
           <div className="rounded-2xl p-5" style={{ backgroundColor: THEME.card, border: `1px solid ${THEME.line}` }}>
-            <CalendarView events={filtered} month={calMonth} setMonth={setCalMonth} year={calYear} setYear={setCalYear} onOpen={setSelectedEvent} />
+            <CalendarView events={filtered} month={calMonth} setMonth={setCalMonth} year={calYear} setYear={setSelectedEvent} />
           </div>
         ) : grouped.length === 0 ? (
           <div className="text-center py-16">
@@ -813,13 +922,19 @@ export default function App() {
         Created by Chathil Malsen , Mechanical Engineering Undergraduate, University of Peradeniya
       </footer>
 
-      {showAdd && <AddEventModal onClose={() => setShowAdd(false)} onSubmit={addEvent} />}
+      {showLogin && <LoginModal onClose={() => setShowLogin(false)} onLoginSuccess={() => setIsAdmin(true)} />}
+      {showAdd && <AddOrEditEventModal onClose={() => setShowAdd(false)} onSubmit={addEvent} />}
+      {editingEvent && <AddOrEditEventModal onClose={() => setEditingEvent(null)} onSubmit={updateEvent} initialData={editingEvent} />}
+      
       {selectedEvent && (
         <EventDetailModal
           ev={events.find((e) => e.id === selectedEvent.id) || selectedEvent}
           onClose={() => setSelectedEvent(null)}
           onComment={addComment}
           onDelete={deleteEvent}
+          onEdit={(ev) => setEditingEvent(ev)}
+          isAdmin={isAdmin}
+          currentUser={currentUser}
         />
       )}
     </div>
