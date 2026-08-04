@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Calendar, List as ListIcon, Search, Plus, X, MapPin, Clock,
   MessageCircle, ChevronLeft, ChevronRight, Trash2, Upload,
-  Users, CalendarDays, AlertCircle, Edit, ShieldCheck, LogOut, User
+  Users, CalendarDays, AlertCircle, Edit, ShieldCheck, LogOut, User,
+  CalendarPlus
 } from "lucide-react";
 
 // --- FIREBASE IMPORTS ---
@@ -803,53 +804,55 @@ export default function App() {
         select, input, textarea, button { font-family: 'Inter', sans-serif; }
       `}</style>
 
-      {/* Header */}
-      <header className="sticky top-0 z-40 backdrop-blur" style={{ backgroundColor: THEME.cream + "F0", borderBottom: `1px solid ${THEME.line}` }}>
+      {/* Light Cream Header */}
+      <header className="sticky top-0 z-40 backdrop-blur" style={{ backgroundColor: THEME.cream, borderBottom: `1px solid ${THEME.line}` }}>
         <div className="max-w-6xl mx-auto px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
+          
+          {/* Logo & Header Info */}
+          <div className="flex items-center gap-2.5 min-w-0">
             <img 
               src="/uop-logo.png" 
               alt="Logo" 
-              className="w-8 h-8 sm:w-9 sm:h-9 object-contain flex-shrink-0" 
+              className="w-9 h-9 sm:w-11 sm:h-11 object-contain flex-shrink-0" 
             />
             <div className="min-w-0">
-              <p className="text-sm sm:text-base font-semibold truncate leading-tight" style={{ fontFamily: "'Fraunces', serif" }}>
+              <h1 className="text-base sm:text-lg font-bold truncate leading-tight tracking-tight" style={{ fontFamily: "'Fraunces', serif", color: THEME.ink }}>
                 University Events
-                
-              </p>
-              <p className="text-[10px] leading-tight truncate mt-0.7" style={{ color: THEME.darkblue }}>
-                THE CAMPUS NOTICE BOARD
-              </p>
-              <p className="text-[10px] leading-tight truncate mt-0.5" style={{ color: THEME.inkSoft }}>
-                By Chathil Malsen
-              </p>
-              
-              <div className="flex items-center gap-1.5 text-[10px] leading-tight mt-0.5">
-                <a href="https://www.linkedin.com/in/chathilmalsen" target="_blank" rel="noopener noreferrer" className="hover:underline font-medium" style={{ color: THEME.gold }}>
+              </h1>
+              <div className="mt-0.5">
+                <span className="inline-block text-[9px] sm:text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-md" style={{ backgroundColor: THEME.ink, color: THEME.cream, fontFamily: "'IBM Plex Mono', monospace" }}>
+                  THE CAMPUS NOTICE BOARD
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 text-[11px] leading-tight mt-1" style={{ color: THEME.inkSoft }}>
+                <span>By Chathil Malsen</span>
+                <span>•</span>
+                <a href="https://www.linkedin.com/in/chathilmalsen" target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: THEME.goldDeep }}>
                   LinkedIn
                 </a>
-                <span style={{ color: THEME.inkSoft }}>•</span>
-                <a href="https://www.instagram.com/chathilmkt?igsh=MTgwZGdlbnVwMzQzeA%3D%3D&utm_source=qr" target="_blank" rel="noopener noreferrer" className="hover:underline font-medium" style={{ color: THEME.gold }}>
+                <span>•</span>
+                <a href="https://instagram.com/chathilmalsen" target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: THEME.goldDeep }}>
                   Instagram
                 </a>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 flex-shrink-0">
+          {/* Navigation Action Buttons */}
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
             <button
               onClick={() => setShowUserModal(true)}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] sm:text-xs font-semibold"
-              style={{ backgroundColor: "#EFE9D8", color: THEME.ink }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors hover:bg-black/5"
+              style={{ backgroundColor: THEME.card, borderColor: THEME.line, color: THEME.ink }}
             >
-              <User size={13} />
+              <User size={14} color={THEME.ink} />
               <span className="max-w-[70px] sm:max-w-[100px] truncate">{currentUser ? currentUser : "Author ID"}</span>
             </button>
 
             {isAdmin ? (
               <button
                 onClick={() => setIsAdmin(false)}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] sm:text-xs font-semibold"
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-semibold"
                 style={{ backgroundColor: "#B0334D14", color: "#B0334D" }}
               >
                 <LogOut size={13} />
@@ -858,8 +861,8 @@ export default function App() {
             ) : (
               <button
                 onClick={() => setShowLogin(true)}
-                className="p-1.5 sm:px-3 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-semibold flex items-center gap-1"
-                style={{ backgroundColor: "#EFE9D8", color: THEME.ink }}
+                className="p-1.5 sm:px-3 sm:py-1.5 rounded-full text-xs font-semibold flex items-center gap-1 border hover:bg-black/5"
+                style={{ backgroundColor: THEME.card, borderColor: THEME.line, color: THEME.ink }}
                 title="Admin Login"
               >
                 <ShieldCheck size={14} />
@@ -867,13 +870,14 @@ export default function App() {
               </button>
             )}
 
+            {/* Interesting & Professional Post Button */}
             <button
               onClick={() => setShowAdd(true)}
-              className="flex items-center gap-1 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-semibold"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-semibold transition-transform active:scale-95 shadow-sm hover:shadow"
               style={{ backgroundColor: THEME.gold, color: THEME.ink }}
             >
-              <Plus size={15} />
-              <span className="hidden xs:inline">Post</span>
+              <CalendarPlus size={16} />
+              <span>Post Event</span>
             </button>
           </div>
         </div>
