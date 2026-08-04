@@ -10,10 +10,13 @@ const STORAGE_KEY = "campus-gazette-events-v2";
 const FACULTIES = [
   { id: "engineering", name: "Faculty of Engineering", short: "ENG", color: "#2E5C8A" },
   { id: "medicine",    name: "Faculty of Medicine",    short: "MED", color: "#B0334D" },
-  { id: "commerce",    name: "Faculty of Commerce",    short: "COM", color: "#B8860B" },
-  { id: "arts",        name: "Faculty of Arts",        short: "ART", color: "#7A4FA3" },
-  { id: "law",         name: "Faculty of Law",         short: "LAW", color: "#6B2D3C" },
-  { id: "dental",      name: "Faculty of Dental Science", short: "DEN", color: "#1E8A8A" },
+  { id: "management",    name: "Faculty of Managements",    short: "MANAGEMENT", color: "#B8860B" },
+  { id: "arts",        name: "Faculty of Arts",        short: "ARTS", color: "#7A4FA3" },
+  { id: "science",         name: "Faculty of Science",         short: "SCIENCE", color: "#6B2D3C" },
+  { id: "dental",      name: "Faculty of Dental Science", short: "DENTAL", color: "#1E8A8A" },
+  { id: "agriculture",        name: "Faculty of Agriculture",        short: "AGRI", color: "#7A4FA3" },
+  { id: "allied health sciences",         name: "Faculty of Allied Health",         short: "Allied", color: "#6B2D3C" },
+  { id: "veterniary and animal medicine",      name: "Faculty of Veterrinary medicine and Animal Science", short: "VET", color: "#1E8A8A" },
 ];
 
 const facultyOf = (id) => FACULTIES.find((f) => f.id === id) || { name: "General", short: "GEN", color: "#5B6472" };
@@ -852,7 +855,7 @@ export default function App() {
       <footer className="text-center py-8 text-xs" style={{ color: THEME.inkSoft, borderTop: `1px solid ${THEME.line}` }}>
         University Events · a shared notice board for every faculty
         <br />
-        Created by Chathil Malsen
+        Created by Chathil Malsen , Mechanical Engineering Undergraduate, University of Peradeniya
       </footer>
 
       {showAdd && <AddEventModal onClose={() => setShowAdd(false)} onSubmit={addEvent} />}
