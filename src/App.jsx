@@ -1223,79 +1223,160 @@ function CalendarView({ events, month, setMonth, year, setYear, onOpen }) {
   );
 }
 
-// Clean, Minimal & Thinner Header Animations (Desktop & Mobile)
+// Optimized Header Background with Lighter, Vastu Area Animations and Periodic Shiny Sparkle Effects
 function HeaderGlow() {
-  const laserBeams = [
-    { angle: 22, top: "-10%", left: "-10%", width: "150%", coreThickness: 1.5, coneWidth: 30, opacity: 0.6, duration: "12s", delay: "0s" },
-    { angle: 30, top: "-15%", left: "-15%", width: "160%", coreThickness: 2,   coneWidth: 45, opacity: 0.7, duration: "15s", delay: "-4s" },
+  const desktopLaserBeams = [
+    { angle: 12, top: "-30%", left: "-10%", width: "150%", coreThickness: 2, coneWidth: 120, opacity: 0.35, duration: "12s", delay: "0s" },
+    { angle: 22, top: "-40%", left: "-20%", width: "160%", coreThickness: 2.5, coneWidth: 140, opacity: 0.4, duration: "15s", delay: "-4s" },
+  ];
+
+  const mobileLaserBeams = [
+    { angle: 15, top: "-25%", left: "-15%", width: "140%", coreThickness: 1.5, coneWidth: 90, opacity: 0.3, duration: "10s", delay: "0s" },
+  ];
+
+  const shinySparkles = [
+    { top: "25%", left: "18%", size: "4px", duration: "4s", delay: "0s" },
+    { top: "65%", left: "45%", size: "5px", duration: "5s", delay: "1.5s" },
+    { top: "35%", left: "75%", size: "4px", duration: "4.5s", delay: "0.8s" },
+    { top: "70%", left: "88%", size: "6px", duration: "6s", delay: "2s" },
+    { top: "20%", left: "55%", size: "3.5px", duration: "3.8s", delay: "2.5s" },
   ];
 
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-      {/* Subtle Dark Ambient Background */}
+      {/* Dark Ambient Background Gradient */}
       <div
         style={{
           position: "absolute", inset: 0,
-          background: "radial-gradient(circle at 10% -20%, #002238 0%, #05080E 70%)",
+          background: "radial-gradient(circle at 20% -20%, #02233b 0%, #05080e 70%, #030509 100%)",
         }}
       />
 
-      {/* Gentle Ambient Cyan Bloom */}
+      {/* Atmospheric Soft Cyan Bloom */}
       <div
         style={{
           position: "absolute",
-          top: "-30px", left: "-30px",
-          width: "220px", height: "220px",
+          top: "-80px", left: "-60px",
+          width: "450px", height: "280px",
           borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(0, 212, 255, 0.25) 0%, transparent 70%)",
-          filter: "blur(40px)",
-          animation: "cyanPointPulse 8s ease-in-out infinite alternate",
+          background: "radial-gradient(circle, rgba(0, 212, 255, 0.2) 0%, rgba(0, 119, 255, 0.08) 50%, transparent 80%)",
+          filter: "blur(45px)",
+          animation: "cyanPointPulse 7s ease-in-out infinite alternate",
         }}
       />
 
-      {/* Thinner, Lesser & Minimal Laser Beams */}
-      {laserBeams.map((b, i) => (
+      {/* DESKTOP LIGHTER WIDE LASER BEAMS */}
+      <div className="hidden sm:block absolute inset-0">
+        {desktopLaserBeams.map((b, i) => (
+          <div
+            key={i}
+            style={{
+              position: "absolute",
+              top: b.top,
+              left: b.left,
+              width: b.width,
+              transformOrigin: "0% 0%",
+              transform: `rotate(${b.angle}deg)`,
+              animation: `laserSweep ${b.duration} ease-in-out ${b.delay} infinite alternate`,
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                top: `-${b.coneWidth / 2}px`,
+                left: 0,
+                width: "100%",
+                height: `${b.coneWidth}px`,
+                background: "linear-gradient(90deg, rgba(0,212,255,0.3) 0%, rgba(0,183,255,0.1) 35%, rgba(0,102,255,0.02) 70%, transparent 100%)",
+                filter: "blur(25px)",
+                opacity: b.opacity,
+                clipPath: "polygon(0% 45%, 100% 0%, 100% 100%, 0% 55%)",
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                top: `-${b.coreThickness / 2}px`,
+                left: 0,
+                width: "100%",
+                height: `${b.coreThickness}px`,
+                background: "linear-gradient(90deg, rgba(255,255,255,0.8) 0%, rgba(0,229,255,0.4) 30%, transparent 90%)",
+                boxShadow: "0 0 8px rgba(0,229,255,0.3)",
+              }}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* MOBILE LIGHTER WIDE LASER BEAMS */}
+      <div className="block sm:hidden absolute inset-0">
+        {mobileLaserBeams.map((b, i) => (
+          <div
+            key={i}
+            style={{
+              position: "absolute",
+              top: b.top,
+              left: b.left,
+              width: b.width,
+              transformOrigin: "0% 0%",
+              transform: `rotate(${b.angle}deg)`,
+              animation: `laserSweep ${b.duration} ease-in-out ${b.delay} infinite alternate`,
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                top: `-${b.coneWidth / 2}px`,
+                left: 0,
+                width: "100%",
+                height: `${b.coneWidth}px`,
+                background: "linear-gradient(90deg, rgba(0,212,255,0.25) 0%, rgba(0,183,255,0.08) 40%, transparent 100%)",
+                filter: "blur(20px)",
+                opacity: b.opacity,
+                clipPath: "polygon(0% 45%, 100% 0%, 100% 100%, 0% 55%)",
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                top: `-${b.coreThickness / 2}px`,
+                left: 0,
+                width: "100%",
+                height: `${b.coreThickness}px`,
+                background: "linear-gradient(90deg, rgba(255,255,255,0.7) 0%, rgba(0,229,255,0.3) 35%, transparent 85%)",
+              }}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* TIME-TO-TIME SHINY SPARKLES */}
+      {shinySparkles.map((s, i) => (
         <div
           key={i}
           style={{
             position: "absolute",
-            top: b.top,
-            left: b.left,
-            width: b.width,
-            transformOrigin: "0% 0%",
-            transform: `rotate(${b.angle}deg)`,
-            animation: `laserSweep ${b.duration} ease-in-out ${b.delay} infinite alternate`,
+            top: s.top,
+            left: s.left,
+            width: s.size,
+            height: s.size,
+            borderRadius: "50%",
+            backgroundColor: "#ffffff",
+            boxShadow: "0 0 8px 2px rgba(0, 229, 255, 0.8), 0 0 15px 4px rgba(255, 255, 255, 0.6)",
+            animation: `shinySparkleAnimation ${s.duration} ease-in-out ${s.delay} infinite`,
           }}
-        >
-          {/* Subtle Light Cone */}
-          <div
-            style={{
-              position: "absolute",
-              top: `-${b.coneWidth / 2}px`,
-              left: 0,
-              width: "100%",
-              height: `${b.coneWidth}px`,
-              background: "linear-gradient(90deg, rgba(0,212,255,0.3) 0%, rgba(0,183,255,0.1) 30%, transparent 80%)",
-              filter: "blur(20px)",
-              opacity: b.opacity * 0.5,
-              clipPath: "polygon(0% 48%, 100% 0%, 100% 100%, 0% 52%)",
-            }}
-          />
-
-          {/* Very Thin & Clean Core Line */}
-          <div
-            style={{
-              position: "absolute",
-              top: `-${b.coreThickness / 2}px`,
-              left: 0,
-              width: "100%",
-              height: `${b.coreThickness}px`,
-              background: "linear-gradient(90deg, rgba(255,255,255,0.9) 0%, rgba(0,229,255,0.7) 30%, rgba(0,153,255,0.1) 80%, transparent 100%)",
-              boxShadow: "0 0 6px rgba(0,229,255,0.5)",
-            }}
-          />
-        </div>
+        />
       ))}
+
+      {/* Atmospheric Smoke Particle Flow Layer */}
+      <div
+        className="cyan-volumetric-haze"
+        style={{
+          position: "absolute", inset: 0,
+          background: "radial-gradient(ellipse at 20% 10%, rgba(0, 229, 255, 0.08) 0%, transparent 65%)",
+          animation: "hazeFlow 12s ease-in-out infinite alternate",
+        }}
+      />
     </div>
   );
 }
@@ -1597,25 +1678,37 @@ export default function App() {
         @keyframes riseIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         
         @keyframes laserSweep {
-          0%   { transform: rotate(22deg) scaleY(0.95); }
-          50%  { transform: rotate(26deg) scaleY(1.05); }
-          100% { transform: rotate(30deg) scaleY(0.98); }
+          0%   { transform: rotate(12deg) scaleY(0.95); }
+          50%  { transform: rotate(20deg) scaleY(1.05); }
+          100% { transform: rotate(16deg) scaleY(0.98); }
         }
         @keyframes cyanPointPulse {
           0%   { transform: scale(0.95); opacity: 0.6; }
           100% { transform: scale(1.1); opacity: 0.9; }
         }
+        @keyframes hazeFlow {
+          0%   { opacity: 0.2; transform: scale(1); }
+          100% { opacity: 0.5; transform: scale(1.1); }
+        }
+        @keyframes shinySparkleAnimation {
+          0%   { transform: scale(0.3); opacity: 0; }
+          50%  { transform: scale(1.2); opacity: 1; }
+          100% { transform: scale(0.3); opacity: 0; }
+        }
 
+        @media (prefers-reduced-motion: reduce) {
+          .cyan-volumetric-haze { animation: none !important; opacity: 0.4 !important; }
+        }
         select, input, textarea, button { font-family: 'Inter', sans-serif; }
       `}</style>
 
-      {/* Header with Minimal & Thinner Animations */}
+      {/* Header with High-Contrast Text & Lighter Wide Laser Effect with Sparkles */}
       <header
         className="sticky top-0 z-40 backdrop-blur relative overflow-hidden transition-colors"
         style={{
           backgroundColor: THEME.headerBg,
           borderBottom: `1px solid ${THEME.line}`,
-          boxShadow: "0 4px 20px rgba(0,0,0,0.3)"
+          boxShadow: "0 4px 25px rgba(0,0,0,0.4)"
         }}
       >
         <HeaderGlow />
