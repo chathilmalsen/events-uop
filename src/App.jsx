@@ -1,4 +1,4 @@
-Import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Calendar, List as ListIcon, Search, Plus, X, MapPin, Clock,
   MessageCircle, ChevronLeft, ChevronRight, Trash2, Upload,
