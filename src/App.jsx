@@ -893,7 +893,7 @@ export default function App() {
               />
               <div className="min-w-0 flex flex-col justify-center">
                 <h1 className="text-sm font-bold truncate leading-snug pb-1" style={{ fontFamily: "'Fraunces', serif", color: THEME.ink }}>
-                  University Events
+                  Campus Connect
                 </h1>
                 <span className="inline-block text-[8px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded" style={{ backgroundColor: THEME.ink, color: THEME.cream, fontFamily: "'IBM Plex Mono', monospace", width: "fit-content" }}>
                   THE CAMPUS NOTICE BOARD
@@ -1068,7 +1068,7 @@ export default function App() {
       </main>
 
       <footer className="text-center py-6 text-[11px] px-4" style={{ color: THEME.inkSoft, borderTop: `1px solid ${THEME.line}` }}>
-        University Events · Campus Notice Board
+        CAMPUS CONNECT · THE CAMPUS NOTICE BOARD
         <br />
         Created by Chathil Malsen, Mechanical Engineering Undergraduate, University of Peradeniya
       </footer>
