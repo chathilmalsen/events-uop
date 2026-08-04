@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+Import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Calendar, List as ListIcon, Search, Plus, X, MapPin, Clock,
   MessageCircle, ChevronLeft, ChevronRight, Trash2, Upload,
@@ -1247,20 +1247,64 @@ function CalendarView({ events, month, setMonth, year, setYear, onOpen }) {
   );
 }
 
+// Ambient animated light-beam header, echoing the reference: a few soft
+// diagonal streaks of light drifting slowly across a dark field. Pure CSS/
+// SVG, no dependencies — renders behind the header content and stays subtle
+// enough not to fight with the text sitting on top of it.
+function HeaderGlow() {
+  const beams = [
+    { top: "-10%", width: "150%", left: "-25%", delay: "0s", duration: "14s", thickness: 2, opacity: 0.55 },
+    { top: "18%", width: "170%", left: "-40%", delay: "-4s", duration: "18s", thickness: 1.5, opacity: 0.35 },
+    { top: "48%", width: "160%", left: "-30%", delay: "-9s", duration: "16s", thickness: 2.5, opacity: 0.45 },
+    { top: "78%", width: "180%", left: "-45%", delay: "-2s", duration: "20s", thickness: 1.5, opacity: 0.3 },
+  ];
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+      <div
+        style={{
+          position: "absolute", inset: 0,
+          background: `radial-gradient(ellipse at 15% 0%, ${THEME.gold}22, transparent 60%)`,
+        }}
+      />
+      {beams.map((b, i) => (
+        <span
+          key={i}
+          className="header-beam"
+          style={{
+            position: "absolute",
+            top: b.top,
+            left: b.left,
+            width: b.width,
+            height: b.thickness,
+            background: `linear-gradient(90deg, transparent 0%, ${THEME.gold}00 5%, ${THEME.gold}cc 45%, ${THEME.goldDeep}cc 55%, transparent 95%)`,
+            transform: "rotate(-6deg)",
+            filter: "blur(1.5px)",
+            opacity: b.opacity,
+            animation: `beamDrift ${b.duration} ease-in-out ${b.delay} infinite`,
+            boxShadow: `0 0 8px ${THEME.gold}55`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 function ThemeToggle({ mode, setMode }) {
+  // Always sits on the dark header banner, so it uses a fixed light-on-dark
+  // palette rather than THEME (which flips with the site's own theme).
   const opts = [
     { m: "light", icon: <Sun size={13} /> },
     { m: "dark", icon: <Moon size={13} /> },
     { m: "system", icon: <Monitor size={13} /> },
   ];
   return (
-    <div className="flex items-center gap-0.5 rounded-full p-1" style={{ backgroundColor: THEME.line + "88" }}>
+    <div className="flex items-center gap-0.5 rounded-full p-1" style={{ backgroundColor: "rgba(255,255,255,0.1)" }}>
       {opts.map((o) => (
         <button
           key={o.m}
           onClick={() => setMode(o.m)}
           className="p-1.5 rounded-full"
-          style={{ backgroundColor: mode === o.m ? THEME.ink : "transparent", color: mode === o.m ? THEME.cream : THEME.inkSoft }}
+          style={{ backgroundColor: mode === o.m ? THEME.gold : "transparent", color: mode === o.m ? "#1B2740" : "#B9C0D4" }}
           title={o.m}
         >
           {o.icon}
@@ -1295,7 +1339,7 @@ export default function App() {
   const [bookmarks, setBookmarks] = useState(getBookmarks());
 
   // Feature 18: Dark Mode
-  const [themeMode, setThemeModeState] = useState(localStorage.getItem("cg_theme_mode") || "system");
+  const [themeMode, setThemeModeState] = useState(localStorage.getItem("cg_theme_mode") || "light");
   const [systemDark, setSystemDark] = useState(
     typeof window !== "undefined" && window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)").matches : false
   );
@@ -1545,14 +1589,27 @@ export default function App() {
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes riseIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes beamDrift {
+          0%   { transform: translateX(-6%) rotate(-6deg); opacity: 0; }
+          15%  { opacity: var(--beam-opacity, 0.45); }
+          50%  { transform: translateX(6%) rotate(-6deg); }
+          85%  { opacity: var(--beam-opacity, 0.45); }
+          100% { transform: translateX(-6%) rotate(-6deg); opacity: 0; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .header-beam { animation: none !important; opacity: 0.25 !important; }
+        }
         select, input, textarea, button { font-family: 'Inter', sans-serif; }
       `}</style>
 
       {/* Header */}
-      <header className="sticky top-0 z-40 backdrop-blur" style={{ backgroundColor: THEME.cream, borderBottom: `1px solid ${THEME.line}` }}>
+      <header className="sticky top-0 z-40 backdrop-blur relative overflow-hidden" style={{ backgroundColor: THEME.ink, borderBottom: `1px solid ${THEME.line}` }}>
+        <HeaderGlow />
 
-        {/* DESKTOP HEADER (sm and up) */}
-        <div className="hidden sm:flex max-w-6xl mx-auto px-6 py-3 items-center justify-between gap-4">
+        {/* DESKTOP HEADER (sm and up) — fixed light-on-dark palette since the
+            beam animation needs a dark field to read the way it does in the
+            reference image, independent of the site's light/dark mode. */}
+        <div className="hidden sm:flex max-w-6xl mx-auto px-6 py-3 items-center justify-between gap-4 relative z-10">
           <div className="flex items-center gap-3 min-w-0">
             <img
               src="/uop-logo.png"
@@ -1561,21 +1618,21 @@ export default function App() {
             />
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h1 className="text-lg font-bold truncate leading-snug tracking-tight pb-0.5" style={{ fontFamily: "'Fraunces', serif", color: THEME.ink }}>
+                <h1 className="text-lg font-bold truncate leading-snug tracking-tight pb-0.5" style={{ fontFamily: "'Fraunces', serif", color: "#F5F1E4" }}>
                   Campus Connect
                 </h1>
-                <span className="inline-block text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-md" style={{ backgroundColor: THEME.ink, color: THEME.cream, fontFamily: "'IBM Plex Mono', monospace" }}>
+                <span className="inline-block text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-md" style={{ backgroundColor: "rgba(255,255,255,0.14)", color: "#F5F1E4", fontFamily: "'IBM Plex Mono', monospace" }}>
                   THE CAMPUS NOTICE BOARD
                 </span>
               </div>
-              <div className="flex items-center gap-1.5 text-xs leading-tight mt-0.5" style={{ color: THEME.inkSoft }}>
+              <div className="flex items-center gap-1.5 text-xs leading-tight mt-0.5" style={{ color: "#B9C0D4" }}>
                 <span>By Chathil Malsen</span>
                 <span>•</span>
-                <a href="https://www.linkedin.com/in/chathilmalsen" target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: THEME.goldDeep }}>
+                <a href="https://www.linkedin.com/in/chathilmalsen" target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: THEME.gold }}>
                   LinkedIn
                 </a>
                 <span>•</span>
-                <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: THEME.goldDeep }}>
+                <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: THEME.gold }}>
                   Instagram
                 </a>
               </div>
@@ -1586,10 +1643,10 @@ export default function App() {
             <ThemeToggle mode={themeMode} setMode={setThemeMode} />
             <button
               onClick={() => setShowUserModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors hover:bg-black/5"
-              style={{ backgroundColor: THEME.card, borderColor: THEME.line, color: THEME.ink }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors hover:bg-white/10"
+              style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.18)", color: "#F5F1E4" }}
             >
-              <User size={14} color={THEME.ink} />
+              <User size={14} color="#F5F1E4" />
               <span className="max-w-[100px] truncate">{currentUser ? currentUser : "Author ID"}</span>
             </button>
 
@@ -1597,7 +1654,7 @@ export default function App() {
               <button
                 onClick={handleAdminLogout}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold"
-                style={{ backgroundColor: THEME.danger + "14", color: THEME.danger }}
+                style={{ backgroundColor: "#E5657F26", color: "#FF9DB0" }}
               >
                 <LogOut size={13} />
                 <span>Admin Active</span>
@@ -1605,8 +1662,8 @@ export default function App() {
             ) : (
               <button
                 onClick={() => setShowLogin(true)}
-                className="px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1 border hover:bg-black/5"
-                style={{ backgroundColor: THEME.card, borderColor: THEME.line, color: THEME.ink }}
+                className="px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1 border hover:bg-white/10"
+                style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.18)", color: "#F5F1E4" }}
                 title="Admin Login"
               >
                 <ShieldCheck size={14} />
@@ -1617,7 +1674,7 @@ export default function App() {
             <button
               onClick={() => setShowAdd(true)}
               className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-transform active:scale-95 shadow-sm hover:shadow"
-              style={{ backgroundColor: THEME.gold, color: THEME.ink }}
+              style={{ backgroundColor: THEME.gold, color: "#1B2740" }}
             >
               <CalendarPlus size={16} />
               <span>Post Event</span>
@@ -1626,7 +1683,7 @@ export default function App() {
         </div>
 
         {/* MOBILE HEADER (xs screens) */}
-        <div className="flex sm:hidden flex-col px-3 py-2.5 gap-2 max-w-6xl mx-auto">
+        <div className="flex sm:hidden flex-col px-3 py-2.5 gap-2 max-w-6xl mx-auto relative z-10">
           {/* Top Row */}
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
@@ -1636,10 +1693,10 @@ export default function App() {
                 className="w-8 h-8 object-contain flex-shrink-0"
               />
               <div className="min-w-0 flex flex-col justify-center">
-                <h1 className="text-sm font-bold truncate leading-snug pb-1" style={{ fontFamily: "'Fraunces', serif", color: THEME.ink }}>
+                <h1 className="text-sm font-bold truncate leading-snug pb-1" style={{ fontFamily: "'Fraunces', serif", color: "#F5F1E4" }}>
                   Campus Connect
                 </h1>
-                <span className="inline-block text-[8px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded" style={{ backgroundColor: THEME.ink, color: THEME.cream, fontFamily: "'IBM Plex Mono', monospace", width: "fit-content" }}>
+                <span className="inline-block text-[8px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded" style={{ backgroundColor: "rgba(255,255,255,0.14)", color: "#F5F1E4", fontFamily: "'IBM Plex Mono', monospace", width: "fit-content" }}>
                   THE CAMPUS NOTICE BOARD
                 </span>
               </div>
@@ -1648,7 +1705,7 @@ export default function App() {
             <button
               onClick={() => setShowAdd(true)}
               className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold transition-transform active:scale-95 shadow-sm flex-shrink-0"
-              style={{ backgroundColor: THEME.gold, color: THEME.ink }}
+              style={{ backgroundColor: THEME.gold, color: "#1B2740" }}
             >
               <CalendarPlus size={14} />
               <span>Post Event</span>
@@ -1656,15 +1713,15 @@ export default function App() {
           </div>
 
           {/* Bottom Row */}
-          <div className="flex items-center justify-between pt-1 text-[10px]" style={{ borderTop: `1px dashed ${THEME.line}`, color: THEME.inkSoft }}>
+          <div className="flex items-center justify-between pt-1 text-[10px]" style={{ borderTop: `1px dashed rgba(255,255,255,0.18)`, color: "#B9C0D4" }}>
             <div className="flex items-center gap-1.5 truncate">
               <span>By Chathil Malsen</span>
               <span>•</span>
-              <a href="https://www.linkedin.com/in/chathilmalsen" target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: THEME.goldDeep }}>
+              <a href="https://www.linkedin.com/in/chathilmalsen" target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: THEME.gold }}>
                 LinkedIn
               </a>
               <span>•</span>
-              <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: THEME.goldDeep }}>
+              <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: THEME.gold }}>
                 Instagram
               </a>
             </div>
@@ -1674,9 +1731,9 @@ export default function App() {
               <button
                 onClick={() => setShowUserModal(true)}
                 className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border"
-                style={{ backgroundColor: THEME.card, borderColor: THEME.line, color: THEME.ink }}
+                style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.18)", color: "#F5F1E4" }}
               >
-                <User size={10} color={THEME.ink} />
+                <User size={10} color="#F5F1E4" />
                 <span className="max-w-[55px] truncate">{currentUser ? currentUser : "Author ID"}</span>
               </button>
 
@@ -1684,7 +1741,7 @@ export default function App() {
                 <button
                   onClick={handleAdminLogout}
                   className="p-1 rounded-full text-[10px]"
-                  style={{ backgroundColor: THEME.danger + "14", color: THEME.danger }}
+                  style={{ backgroundColor: "#E5657F26", color: "#FF9DB0" }}
                 >
                   <LogOut size={11} />
                 </button>
@@ -1692,7 +1749,7 @@ export default function App() {
                 <button
                   onClick={() => setShowLogin(true)}
                   className="p-1 rounded-full border"
-                  style={{ backgroundColor: THEME.card, borderColor: THEME.line, color: THEME.ink }}
+                  style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.18)", color: "#F5F1E4" }}
                   title="Admin Login"
                 >
                   <ShieldCheck size={11} />
