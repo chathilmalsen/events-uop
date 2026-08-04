@@ -5,18 +5,30 @@ import {
   Users, CalendarDays, AlertCircle
 } from "lucide-react";
 
-const STORAGE_KEY = "campus-gazette-events-v2";
+// --- FIREBASE IMPORTS ---
+import { db } from "./firebase";
+import { 
+  collection, 
+  addDoc, 
+  onSnapshot, 
+  query, 
+  orderBy, 
+  doc, 
+  deleteDoc, 
+  updateDoc, 
+  arrayUnion 
+} from "firebase/firestore";
 
 const FACULTIES = [
   { id: "engineering", name: "Faculty of Engineering", short: "ENG", color: "#2E5C8A" },
   { id: "medicine",    name: "Faculty of Medicine",    short: "MED", color: "#B0334D" },
-  { id: "management",    name: "Faculty of Managements",    short: "MANAGEMENT", color: "#B8860B" },
+  { id: "management",  name: "Faculty of Managements",  short: "MANAGEMENT", color: "#B8860B" },
   { id: "arts",        name: "Faculty of Arts",        short: "ARTS", color: "#7A4FA3" },
-  { id: "science",         name: "Faculty of Science",         short: "SCIENCE", color: "#6B2D3C" },
+  { id: "science",     name: "Faculty of Science",     short: "SCIENCE", color: "#6B2D3C" },
   { id: "dental",      name: "Faculty of Dental Science", short: "DENTAL", color: "#1E8A8A" },
-  { id: "agriculture",        name: "Faculty of Agriculture",        short: "AGRI", color: "#7A4FA3" },
-  { id: "allied health sciences",         name: "Faculty of Allied Health",         short: "Allied", color: "#6B2D3C" },
-  { id: "veterniary and animal medicine",      name: "Faculty of Veterrinary medicine and Animal Science", short: "VET", color: "#1E8A8A" },
+  { id: "agriculture", name: "Faculty of Agriculture", short: "AGRI", color: "#7A4FA3" },
+  { id: "allied health sciences", name: "Faculty of Allied Health", short: "Allied", color: "#6B2D3C" },
+  { id: "veterniary and animal medicine", name: "Faculty of Veterrinary medicine and Animal Science", short: "VET", color: "#1E8A8A" },
 ];
 
 const facultyOf = (id) => FACULTIES.find((f) => f.id === id) || { name: "General", short: "GEN", color: "#5B6472" };
@@ -35,13 +47,13 @@ function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
-const SEED_EVENTS = [];
-
 function formatDateLabel(dateStr) {
+  if (!dateStr) return "";
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 }
 function formatMonthLabel(dateStr) {
+  if (!dateStr) return "";
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
 }
@@ -73,28 +85,6 @@ function monthMatrix(year, month) {
 }
 function pad2(n) { return String(n).padStart(2, "0"); }
 
-// ---- Local persistence helpers (browser localStorage — works on any static host) ----
-function loadEvents() {
-  try {
-    const raw = window.localStorage.getItem(events_v2);
-    if (raw) return JSON.parse(raw);
-  } catch (e) {
-    console.warn("Could not read saved events", e);
-  }
-  return null;
-}
-function saveEvents(events) {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
-    return true;
-  } catch (e) {
-    console.warn("Could not save events", e);
-    return false;
-  }
-}
-
-// Convert an uploaded image file to a base64 data URL so it can be stored
-// alongside the event and displayed with a plain <img src="..."> tag.
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -253,8 +243,8 @@ function AddEventModal({ onClose, onSubmit }) {
       setError("Please choose an image file for the poster.");
       return;
     }
-    if (file.size > 4 * 1024 * 1024) {
-      setError("Poster image is too large — please use one under 4MB.");
+    if (file.size > 1 * 1024 * 1024) {
+      setError("Poster image is too large — please use an image under 1MB.");
       return;
     }
     setUploading(true);
@@ -274,7 +264,7 @@ function AddEventModal({ onClose, onSubmit }) {
       setError("Please fill in all required fields.");
       return;
     }
-    onSubmit({ ...form, id: uid(), createdAt: Date.now(), comments: [] });
+    onSubmit({ ...form, comments: [] });
   };
 
   return (
@@ -354,7 +344,7 @@ function AddEventModal({ onClose, onSubmit }) {
                 </button>
               )}
             </div>
-            <p className="text-xs mt-1.5" style={{ color: THEME.inkSoft }}>Optional. JPG or PNG, up to 4MB. You can also paste a link below instead.</p>
+            <p className="text-xs mt-1.5" style={{ color: THEME.inkSoft }}>Optional. JPG or PNG, up to 1MB. You can also paste a link below instead.</p>
             <input
               style={{ ...inputStyle, marginTop: 8 }}
               value={form.posterUrl.startsWith("data:") ? "" : form.posterUrl}
@@ -433,7 +423,7 @@ function EventDetailModal({ ev, onClose, onComment, onDelete }) {
               <p className="text-sm" style={{ color: THEME.inkSoft }}>No comments yet. Ask a question or share something useful for others going.</p>
             )}
             {comments.map((c) => (
-              <div key={c.id} className="flex gap-2.5">
+              <div key={c.id || uid()} className="flex gap-2.5">
                 <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0" style={{ backgroundColor: THEME.ink, color: THEME.cream }}>
                   {c.author.charAt(0).toUpperCase()}
                 </div>
@@ -540,7 +530,6 @@ function CalendarView({ events, month, setMonth, year, setYear, onOpen }) {
 export default function App() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [storageOk, setStorageOk] = useState(true);
   const [view, setView] = useState("list");
   const [facultyFilter, setFacultyFilter] = useState("all");
   const [timeFilter, setTimeFilter] = useState("upcoming");
@@ -551,38 +540,57 @@ export default function App() {
   const [calMonth, setCalMonth] = useState(now.getMonth());
   const [calYear, setCalYear] = useState(now.getFullYear());
 
+  // --- Real-time Firebase Sync ---
   useEffect(() => {
-    const saved = loadEvents();
-    if (saved) {
-      setEvents(saved);
-    } else {
-      setEvents(SEED_EVENTS);
-      const ok = saveEvents(SEED_EVENTS);
-      if (!ok) setStorageOk(false);
-    }
-    setLoading(false);
+    const q = query(collection(db, "events"), orderBy("createdAt", "desc"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetchedEvents = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setEvents(fetchedEvents);
+      setLoading(false);
+    }, (error) => {
+      console.error("Firestore error:", error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  const persist = (next) => {
-    setEvents(next);
-    const ok = saveEvents(next);
-    if (!ok) setStorageOk(false);
+  const addEvent = async (ev) => {
+    try {
+      await addDoc(collection(db, "events"), {
+        ...ev,
+        createdAt: Date.now(),
+      });
+      setShowAdd(false);
+    } catch (error) {
+      console.error("Error adding event:", error);
+      alert("Could not save event to cloud. Please try again.");
+    }
   };
 
-  const addEvent = (ev) => {
-    persist([...events, ev]);
-    setShowAdd(false);
+  const addComment = async (eventId, comment) => {
+    try {
+      const eventRef = doc(db, "events", eventId);
+      await updateDoc(eventRef, {
+        comments: arrayUnion(comment)
+      });
+    } catch (error) {
+      console.error("Error adding comment:", error);
+    }
   };
-  const addComment = (eventId, comment) => {
-    const next = events.map((e) => e.id === eventId ? { ...e, comments: [...(e.comments || []), comment] } : e);
-    persist(next);
-    setSelectedEvent((cur) => cur && cur.id === eventId ? next.find((e) => e.id === eventId) : cur);
-  };
-  const deleteEvent = (eventId) => {
+
+  const deleteEvent = async (eventId) => {
     const ev = events.find((e) => e.id === eventId);
     if (!window.confirm(`Remove "${ev ? ev.title : "this event"}"? This can't be undone.`)) return;
-    persist(events.filter((e) => e.id !== eventId));
-    setSelectedEvent(null);
+    try {
+      await deleteDoc(doc(db, "events", eventId));
+      setSelectedEvent(null);
+    } catch (error) {
+      console.error("Error deleting event:", error);
+    }
   };
 
   const filtered = useMemo(() => {
@@ -648,42 +656,39 @@ export default function App() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="flex items-center gap-2.5">
-  {/* Replaces the UE circle with your logo */}
-  <img 
-    src="/uop-logo.png" 
-    alt="University Logo" 
-    className="w-9 h-9 object-contain" 
-  />
-  <div>
-    <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 600 }}>University Events</p>
-    <p style={{ fontSize: 10.5, color: THEME.inkSoft, letterSpacing: '0.05em' }}>THE CAMPUS NOTICE BOARD</p>
-    
-    {/* Adds your name and social links directly under the notice board text */}
-    <div className="flex items-center gap-1.5 text-[11px] mt-0.5" style={{ color: THEME.inkSoft }}>
-      <span>By Chathil Malsen</span>
-      <span>•</span>
-      <a 
-        href="https://www.linkedin.com/in/chathilmalsen" 
-        target="_blank" 
-        rel="noopener noreferrer" 
-        className="hover:underline font-medium"
-        style={{ color: THEME.amber }}
-      >
-        LinkedIn
-      </a>
-      <span>•</span>
-      <a 
-        href="https://www.instagram.com/chathilmkt" 
-        target="_blank" 
-        rel="noopener noreferrer" 
-        className="hover:underline font-medium"
-        style={{ color: THEME.amber }}
-      >
-        Instagram
-      </a>
-    </div>
-  </div>
-</div>
+              <img 
+                src="/uop-logo.png" 
+                alt="University Logo" 
+                className="w-9 h-9 object-contain" 
+              />
+              <div>
+                <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 600 }}>University Events</p>
+                <p style={{ fontSize: 10.5, color: THEME.inkSoft, letterSpacing: '0.05em' }}>THE CAMPUS NOTICE BOARD</p>
+                <div className="flex items-center gap-1.5 text-[11px] mt-0.5" style={{ color: THEME.inkSoft }}>
+                  <span>By Chathil Malsen</span>
+                  <span>•</span>
+                  <a 
+                    href="https://www.linkedin.com/in/chathilmalsen" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="hover:underline font-medium"
+                    style={{ color: THEME.gold }}
+                  >
+                    LinkedIn
+                  </a>
+                  <span>•</span>
+                  <a 
+                    href="https://www.instagram.com/chathilmkt" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="hover:underline font-medium"
+                    style={{ color: THEME.gold }}
+                  >
+                    Instagram
+                  </a>
+                </div>
+              </div>
+            </div>
           </div>
           <button
             onClick={() => setShowAdd(true)}
@@ -694,12 +699,6 @@ export default function App() {
           </button>
         </div>
       </header>
-
-      {!storageOk && (
-        <div className="text-center text-xs py-1.5" style={{ backgroundColor: "#B0334D14", color: "#B0334D" }}>
-          Couldn't save to this browser's storage — changes will only be visible until you reload.
-        </div>
-      )}
 
       {/* Hero */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-10 pb-8">
@@ -775,7 +774,7 @@ export default function App() {
       {/* Main */}
       <main className="max-w-6xl mx-auto px-4 sm:px-6 pb-20">
         {loading ? (
-          <p className="text-sm py-10 text-center" style={{ color: THEME.inkSoft }}>Loading the board…</p>
+          <p className="text-sm py-10 text-center" style={{ color: THEME.inkSoft }}>Loading the board from cloud database…</p>
         ) : view === "calendar" ? (
           <div className="rounded-2xl p-5" style={{ backgroundColor: THEME.card, border: `1px solid ${THEME.line}` }}>
             <CalendarView events={filtered} month={calMonth} setMonth={setCalMonth} year={calYear} setYear={setCalYear} onOpen={setSelectedEvent} />
