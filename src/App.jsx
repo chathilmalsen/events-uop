@@ -831,7 +831,7 @@ export default function App() {
                   LinkedIn
                 </a>
                 <span>•</span>
-                <a href="https://instagram.com/chathilmalsen" target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: THEME.goldDeep }}>
+                <a href="https://www.instagram.com/chathilmkt?igsh=MTgwZGdlbnVwMzQzeA%3D%3D&utm_source=qr" target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: THEME.goldDeep }}>
                   Instagram
                 </a>
               </div>
