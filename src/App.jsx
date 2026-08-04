@@ -3,25 +3,37 @@ import {
   Calendar, List as ListIcon, Search, Plus, X, MapPin, Clock,
   MessageCircle, ChevronLeft, ChevronRight, Trash2, Upload,
   Users, CalendarDays, AlertCircle, Edit, ShieldCheck, LogOut, User,
-  CalendarPlus
+  CalendarPlus, Download
 } from "lucide-react";
 
 // --- FIREBASE IMPORTS ---
-import { db } from "./firebase";
-import { 
-  collection, 
-  addDoc, 
-  onSnapshot, 
-  query, 
-  orderBy, 
-  doc, 
-  deleteDoc, 
-  updateDoc, 
-  arrayUnion 
+import { db, auth } from "./firebase";
+import {
+  collection,
+  addDoc,
+  onSnapshot,
+  query,
+  orderBy,
+  doc,
+  deleteDoc,
+  updateDoc,
+  arrayUnion
 } from "firebase/firestore";
+import {
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged
+} from "firebase/auth";
 
+// SECURITY NOTE: the admin password used to live here as a plain string
+// (ADMIN_PASS = "..."), which meant anyone opening dev tools or viewing
+// the JS bundle could read it and delete/edit any event on the live site.
+// It has been removed. Admin sign-in now goes through Firebase
+// Authentication (see firebase.js) — create the admin account once in the
+// Firebase console under Authentication > Users, and the password never
+// ships to the browser. Only the email is kept here, purely to label who
+// counts as "admin" once Firebase confirms the sign-in.
 const ADMIN_EMAIL = "ktchathilmalsencm@gmail.com";
-const ADMIN_PASS = "kt1234@CM";
 const INSTAGRAM_URL = "https://www.instagram.com/chathilmkt?igsh=MTgwZGdlbnVwMzQzeA%3D%3D&utm_source=qr";
 
 const FACULTIES = [
@@ -97,6 +109,46 @@ function fileToDataUrl(file) {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+// --- .ics calendar export ---
+// Lets a student add an event straight into Google/Apple/Outlook calendar
+// instead of just seeing it on the board and forgetting about it.
+function icsDateTime(dateStr, timeStr) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const [h, min] = (timeStr || "00:00").split(":").map(Number);
+  const dt = new Date(y, m - 1, d, h, min);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${dt.getFullYear()}${pad(dt.getMonth() + 1)}${pad(dt.getDate())}T${pad(dt.getHours())}${pad(dt.getMinutes())}00`;
+}
+function downloadIcsForEvent(ev) {
+  const start = icsDateTime(ev.date, ev.startTime);
+  const end = icsDateTime(ev.date, ev.endTime || ev.startTime);
+  const escapeText = (s = "") => s.replace(/[\\;,]/g, (c) => "\\" + c).replace(/\n/g, "\\n");
+  const ics = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Campus Connect//Campus Notice Board//EN",
+    "BEGIN:VEVENT",
+    `UID:${ev.id || uid()}@events-uop`,
+    `DTSTAMP:${icsDateTime(new Date().toISOString().slice(0, 10), "00:00")}`,
+    `DTSTART:${start}`,
+    `DTEND:${end}`,
+    `SUMMARY:${escapeText(ev.title)}`,
+    `LOCATION:${escapeText(ev.location)}`,
+    `DESCRIPTION:${escapeText(ev.description || "")}`,
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].join("\r\n");
+  const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${ev.title.replace(/[^a-z0-9]/gi, "-").slice(0, 40)}.ics`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 function FacultySeal({ faculty, size = "md" }) {
@@ -277,14 +329,27 @@ function LoginModal({ onClose, onLoginSuccess }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    if (email.trim() === ADMIN_EMAIL && password === ADMIN_PASS) {
+    setError("");
+    setSubmitting(true);
+    try {
+      // Real Firebase Authentication call — the password is checked by
+      // Firebase's servers, never compared against a string in this file.
+      const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+      if (cred.user.email !== ADMIN_EMAIL) {
+        await signOut(auth);
+        setError("This account is not authorized as admin.");
+        setSubmitting(false);
+        return;
+      }
       onLoginSuccess();
       onClose();
-    } else {
+    } catch (err) {
       setError("Invalid admin email or password.");
+      setSubmitting(false);
     }
   };
 
@@ -330,7 +395,9 @@ function LoginModal({ onClose, onLoginSuccess }) {
         </Field>
         <div className="flex justify-end gap-2 mt-6">
           <button type="button" onClick={onClose} className="px-4 py-2 rounded-full text-sm font-medium" style={{ color: THEME.inkSoft }}>Cancel</button>
-          <button type="submit" className="px-5 py-2 rounded-full text-sm font-semibold" style={{ backgroundColor: THEME.ink, color: "#FAF6EC" }}>Sign In</button>
+          <button type="submit" disabled={submitting} className="px-5 py-2 rounded-full text-sm font-semibold disabled:opacity-60" style={{ backgroundColor: THEME.ink, color: "#FAF6EC" }}>
+            {submitting ? "Signing in…" : "Sign In"}
+          </button>
         </div>
       </form>
     </Modal>
@@ -350,6 +417,7 @@ function AddOrEditEventModal({ onClose, onSubmit, initialData, currentUser }) {
       postedBy: currentUser || "",
       posterUrl: "",
       description: "",
+      tags: [],
     }
   );
   const [error, setError] = useState("");
@@ -357,6 +425,14 @@ function AddOrEditEventModal({ onClose, onSubmit, initialData, currentUser }) {
   const fileInputRef = useRef(null);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const TAG_OPTIONS = ["Free food", "Certificates", "Open to all faculties", "Registration required"];
+  const toggleTag = (tag) => {
+    setForm((f) => {
+      const tags = f.tags || [];
+      return { ...f, tags: tags.includes(tag) ? tags.filter((t) => t !== tag) : [...tags, tag] };
+    });
+  };
 
   const handlePosterFile = async (e) => {
     const file = e.target.files && e.target.files[0];
@@ -439,6 +515,28 @@ function AddOrEditEventModal({ onClose, onSubmit, initialData, currentUser }) {
               <input style={inputStyle} value={form.postedBy} onChange={set("postedBy")} placeholder="Your name (for edits)" />
             </Field>
           </div>
+          <Field label="Tags">
+            <div className="flex flex-wrap gap-2">
+              {TAG_OPTIONS.map((tag) => {
+                const active = (form.tags || []).includes(tag);
+                return (
+                  <button
+                    type="button"
+                    key={tag}
+                    onClick={() => toggleTag(tag)}
+                    className="px-3 py-1.5 rounded-full text-xs font-semibold border"
+                    style={{
+                      backgroundColor: active ? THEME.ink : "transparent",
+                      color: active ? THEME.cream : THEME.inkSoft,
+                      borderColor: active ? THEME.ink : THEME.line,
+                    }}
+                  >
+                    {tag}
+                  </button>
+                );
+              })}
+            </div>
+          </Field>
           <Field label="Event Poster">
             <div className="flex flex-wrap items-center gap-3">
               <button
@@ -486,6 +584,7 @@ function EventDetailModal({ ev, onClose, onComment, onDelete, onEdit, isAdmin, c
   const [text, setText] = useState("");
   const f = facultyOf(ev.faculty);
   const comments = ev.comments || [];
+  const tags = ev.tags || [];
 
   const isAuthor = Boolean(currentUser && ev.postedBy && currentUser.trim().toLowerCase() === ev.postedBy.trim().toLowerCase());
   const canModify = isAdmin || isAuthor;
@@ -537,6 +636,22 @@ function EventDetailModal({ ev, onClose, onComment, onDelete, onEdit, isAdmin, c
             <span className="flex items-center gap-1"><MapPin size={13} /> {ev.location}</span>
             <span className="flex items-center gap-1"><Users size={13} /> {ev.organizer}</span>
           </div>
+          {tags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-3">
+              {tags.map((tag) => (
+                <span key={tag} className="text-[10px] font-semibold px-2 py-1 rounded-full" style={{ backgroundColor: THEME.ink + "0d", color: THEME.ink }}>
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+          <button
+            onClick={() => downloadIcsForEvent(ev)}
+            className="flex items-center gap-1.5 mt-3 px-3 py-1.5 rounded-full text-xs font-semibold"
+            style={{ backgroundColor: THEME.gold, color: THEME.ink }}
+          >
+            <Download size={13} /> Add to Calendar
+          </button>
         </div>
 
         {ev.posterUrl && (
@@ -668,7 +783,7 @@ export default function App() {
   const [facultyFilter, setFacultyFilter] = useState("all");
   const [timeFilter, setTimeFilter] = useState("upcoming");
   const [search, setSearch] = useState("");
-  
+
   const [showAdd, setShowAdd] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [showUserModal, setShowUserModal] = useState(false);
@@ -685,6 +800,21 @@ export default function App() {
   const handleSaveUserName = (name) => {
     localStorage.setItem("cg_user_name", name);
     setCurrentUser(name);
+  };
+
+  // Keep admin status in sync with real Firebase Auth state, so a refresh
+  // doesn't silently log the admin out, and no one can fake admin by
+  // poking at local React state in dev tools.
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setIsAdmin(Boolean(user && user.email === ADMIN_EMAIL));
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleAdminLogout = async () => {
+    await signOut(auth);
+    setIsAdmin(false);
   };
 
   useEffect(() => {
@@ -807,14 +937,14 @@ export default function App() {
 
       {/* Header */}
       <header className="sticky top-0 z-40 backdrop-blur" style={{ backgroundColor: THEME.cream, borderBottom: `1px solid ${THEME.line}` }}>
-        
+
         {/* DESKTOP HEADER (sm and up) */}
         <div className="hidden sm:flex max-w-6xl mx-auto px-6 py-3 items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
-            <img 
-              src="/uop-logo.png" 
-              alt="Logo" 
-              className="w-11 h-11 object-contain flex-shrink-0" 
+            <img
+              src="/uop-logo.png"
+              alt="Logo"
+              className="w-11 h-11 object-contain flex-shrink-0"
             />
             <div className="min-w-0">
               <div className="flex items-center gap-2">
@@ -851,7 +981,7 @@ export default function App() {
 
             {isAdmin ? (
               <button
-                onClick={() => setIsAdmin(false)}
+                onClick={handleAdminLogout}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold"
                 style={{ backgroundColor: "#B0334D14", color: "#B0334D" }}
               >
@@ -886,10 +1016,10 @@ export default function App() {
           {/* Top Row */}
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
-              <img 
-                src="/uop-logo.png" 
-                alt="Logo" 
-                className="w-8 h-8 object-contain flex-shrink-0" 
+              <img
+                src="/uop-logo.png"
+                alt="Logo"
+                className="w-8 h-8 object-contain flex-shrink-0"
               />
               <div className="min-w-0 flex flex-col justify-center">
                 <h1 className="text-sm font-bold truncate leading-snug pb-1" style={{ fontFamily: "'Fraunces', serif", color: THEME.ink }}>
@@ -937,7 +1067,7 @@ export default function App() {
 
               {isAdmin ? (
                 <button
-                  onClick={() => setIsAdmin(false)}
+                  onClick={handleAdminLogout}
                   className="p-1 rounded-full text-[10px]"
                   style={{ backgroundColor: "#B0334D14", color: "#B0334D" }}
                 >
@@ -973,7 +1103,7 @@ export default function App() {
         <div className="flex flex-wrap gap-5 mt-4">
           <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, color: THEME.ink, fontWeight: 600 }}>{upcomingCount}</span> <span className="text-xs" style={{ color: THEME.inkSoft }}>upcoming</span></div>
           <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, color: THEME.ink, fontWeight: 600 }}>{thisWeekCount}</span> <span className="text-xs" style={{ color: THEME.inkSoft }}>this week</span></div>
-          <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, color: THEME.ink, fontWeight: 600 }}>9</span> <span className="text-xs" style={{ color: THEME.inkSoft }}>faculties</span></div>
+          <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, color: THEME.ink, fontWeight: 600 }}>{FACULTIES.length}</span> <span className="text-xs" style={{ color: THEME.inkSoft }}>faculties</span></div>
         </div>
       </section>
 
@@ -1077,7 +1207,7 @@ export default function App() {
       {showUserModal && <SetUserModal onClose={() => setShowUserModal(false)} onSave={handleSaveUserName} currentName={currentUser} />}
       {showAdd && <AddOrEditEventModal onClose={() => setShowAdd(false)} onSubmit={addEvent} currentUser={currentUser} />}
       {editingEvent && <AddOrEditEventModal onClose={() => setEditingEvent(null)} onSubmit={updateEvent} initialData={editingEvent} currentUser={currentUser} />}
-      
+
       {selectedEvent && (
         <EventDetailModal
           ev={events.find((e) => e.id === selectedEvent.id) || selectedEvent}
