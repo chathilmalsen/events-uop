@@ -815,11 +815,15 @@ export default function App() {
             <div className="min-w-0">
               <p className="text-sm sm:text-base font-semibold truncate leading-tight" style={{ fontFamily: "'Fraunces', serif" }}>
                 University Events
+                
+              </p>
+              <p className="text-[10px] leading-tight truncate mt-0.7" style={{ color: THEME.darkblue }}>
                 THE CAMPUS NOTICE BOARD
               </p>
               <p className="text-[10px] leading-tight truncate mt-0.5" style={{ color: THEME.inkSoft }}>
                 By Chathil Malsen
               </p>
+              
               <div className="flex items-center gap-1.5 text-[10px] leading-tight mt-0.5">
                 <a href="https://www.linkedin.com/in/chathilmalsen" target="_blank" rel="noopener noreferrer" className="hover:underline font-medium" style={{ color: THEME.gold }}>
                   LinkedIn
