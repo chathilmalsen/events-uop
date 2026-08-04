@@ -1223,38 +1223,37 @@ function CalendarView({ events, month, setMonth, year, setYear, onOpen }) {
   );
 }
 
-// Live Volumetric Cyan Laser & Beam Header Background
+// Clean, Minimal & Thinner Header Animations (Desktop & Mobile)
 function HeaderGlow() {
   const laserBeams = [
-    { angle: 18,  top: "-10%", left: "-10%", width: "160%", coreThickness: 4, coneWidth: 70, opacity: 0.95, duration: "7s", delay: "0s" },
-    { angle: 26,  top: "-15%", left: "-15%", width: "180%", coreThickness: 6, coneWidth: 95, opacity: 1.0,  duration: "9s", delay: "-2.5s" },
-    { angle: 34,  top: "-20%", left: "-20%", width: "170%", coreThickness: 3, coneWidth: 60, opacity: 0.85, duration: "8s", delay: "-5s" },
+    { angle: 22, top: "-10%", left: "-10%", width: "150%", coreThickness: 1.5, coneWidth: 30, opacity: 0.6, duration: "12s", delay: "0s" },
+    { angle: 30, top: "-15%", left: "-15%", width: "160%", coreThickness: 2,   coneWidth: 45, opacity: 0.7, duration: "15s", delay: "-4s" },
   ];
 
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-      {/* Dark Ambient Background Gradient */}
+      {/* Subtle Dark Ambient Background */}
       <div
         style={{
           position: "absolute", inset: 0,
-          background: "radial-gradient(circle at -10% -10%, #003b5c 0%, #050b14 65%, #020408 100%)",
+          background: "radial-gradient(circle at 10% -20%, #002238 0%, #05080E 70%)",
         }}
       />
 
-      {/* Atmospheric Volumetric Fog / Cyan Bloom Point Origin */}
+      {/* Gentle Ambient Cyan Bloom */}
       <div
         style={{
           position: "absolute",
-          top: "-50px", left: "-50px",
-          width: "350px", height: "350px",
+          top: "-30px", left: "-30px",
+          width: "220px", height: "220px",
           borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(0, 212, 255, 0.45) 0%, rgba(0, 119, 255, 0.25) 40%, transparent 75%)",
-          filter: "blur(35px)",
-          animation: "cyanPointPulse 5s ease-in-out infinite alternate",
+          background: "radial-gradient(circle, rgba(0, 212, 255, 0.25) 0%, transparent 70%)",
+          filter: "blur(40px)",
+          animation: "cyanPointPulse 8s ease-in-out infinite alternate",
         }}
       />
 
-      {/* Volumetric Cyan Laser Beams */}
+      {/* Thinner, Lesser & Minimal Laser Beams */}
       {laserBeams.map((b, i) => (
         <div
           key={i}
@@ -1268,7 +1267,7 @@ function HeaderGlow() {
             animation: `laserSweep ${b.duration} ease-in-out ${b.delay} infinite alternate`,
           }}
         >
-          {/* Broad Atmospheric Light Cone */}
+          {/* Subtle Light Cone */}
           <div
             style={{
               position: "absolute",
@@ -1276,28 +1275,14 @@ function HeaderGlow() {
               left: 0,
               width: "100%",
               height: `${b.coneWidth}px`,
-              background: "linear-gradient(90deg, rgba(0,212,255,0.7) 0%, rgba(0,183,255,0.25) 25%, rgba(0,102,255,0.08) 65%, transparent 100%)",
-              filter: "blur(18px)",
-              opacity: b.opacity * 0.75,
+              background: "linear-gradient(90deg, rgba(0,212,255,0.3) 0%, rgba(0,183,255,0.1) 30%, transparent 80%)",
+              filter: "blur(20px)",
+              opacity: b.opacity * 0.5,
               clipPath: "polygon(0% 48%, 100% 0%, 100% 100%, 0% 52%)",
             }}
           />
 
-          {/* Diffuse Inner Glow Layer */}
-          <div
-            style={{
-              position: "absolute",
-              top: "-12px",
-              left: 0,
-              width: "100%",
-              height: "24px",
-              background: "linear-gradient(90deg, #ffffff 0%, rgba(0,229,255,0.95) 15%, rgba(0,140,255,0.6) 45%, transparent 100%)",
-              filter: "blur(8px)",
-              opacity: b.opacity,
-            }}
-          />
-
-          {/* Sharp Intense Core Laser Line */}
+          {/* Very Thin & Clean Core Line */}
           <div
             style={{
               position: "absolute",
@@ -1305,23 +1290,12 @@ function HeaderGlow() {
               left: 0,
               width: "100%",
               height: `${b.coreThickness}px`,
-              background: "linear-gradient(90deg, #ffffff 0%, #e0f7fc 12%, rgba(0,229,255,0.95) 40%, rgba(0,153,255,0.2) 85%, transparent 100%)",
-              boxShadow: "0 0 10px #00e5ff, 0 0 20px #00a2ff, 0 0 35px rgba(0, 212, 255, 0.8)",
-              filter: "drop-shadow(0 0 6px #ffffff)",
+              background: "linear-gradient(90deg, rgba(255,255,255,0.9) 0%, rgba(0,229,255,0.7) 30%, rgba(0,153,255,0.1) 80%, transparent 100%)",
+              boxShadow: "0 0 6px rgba(0,229,255,0.5)",
             }}
           />
         </div>
       ))}
-
-      {/* Atmospheric Smoke Particle Flow Layer */}
-      <div
-        className="cyan-volumetric-haze"
-        style={{
-          position: "absolute", inset: 0,
-          background: "radial-gradient(ellipse at 15% 0%, rgba(0, 229, 255, 0.15) 0%, transparent 60%)",
-          animation: "hazeFlow 10s ease-in-out infinite alternate",
-        }}
-      />
     </div>
   );
 }
@@ -1623,32 +1597,25 @@ export default function App() {
         @keyframes riseIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         
         @keyframes laserSweep {
-          0%   { transform: rotate(18deg) scaleY(0.9); }
-          50%  { transform: rotate(25deg) scaleY(1.1); }
-          100% { transform: rotate(32deg) scaleY(0.95); }
+          0%   { transform: rotate(22deg) scaleY(0.95); }
+          50%  { transform: rotate(26deg) scaleY(1.05); }
+          100% { transform: rotate(30deg) scaleY(0.98); }
         }
         @keyframes cyanPointPulse {
-          0%   { transform: scale(0.9); opacity: 0.8; }
-          100% { transform: scale(1.2); opacity: 1; }
-        }
-        @keyframes hazeFlow {
-          0%   { opacity: 0.3; transform: scale(1); }
-          100% { opacity: 0.7; transform: scale(1.15); }
+          0%   { transform: scale(0.95); opacity: 0.6; }
+          100% { transform: scale(1.1); opacity: 0.9; }
         }
 
-        @media (prefers-reduced-motion: reduce) {
-          .cyan-volumetric-haze { animation: none !important; opacity: 0.5 !important; }
-        }
         select, input, textarea, button { font-family: 'Inter', sans-serif; }
       `}</style>
 
-      {/* Header with High-Contrast Text & Volumetric Cyan Laser Effect */}
+      {/* Header with Minimal & Thinner Animations */}
       <header
         className="sticky top-0 z-40 backdrop-blur relative overflow-hidden transition-colors"
         style={{
           backgroundColor: THEME.headerBg,
           borderBottom: `1px solid ${THEME.line}`,
-          boxShadow: "0 4px 25px rgba(0,0,0,0.4)"
+          boxShadow: "0 4px 20px rgba(0,0,0,0.3)"
         }}
       >
         <HeaderGlow />
