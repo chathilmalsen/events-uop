@@ -22,6 +22,7 @@ import {
 
 const ADMIN_EMAIL = "ktchathilmalsencm@gmail.com";
 const ADMIN_PASS = "kt1234@CM";
+const INSTAGRAM_URL = "https://www.instagram.com/chathilmkt?igsh=MTgwZGdlbnVwMzQzeA%3D%3D&utm_source=qr";
 
 const FACULTIES = [
   { id: "engineering", name: "Faculty of Engineering", short: "ENG", color: "#2E5C8A" },
@@ -159,7 +160,7 @@ function EventCard({ ev, onOpen }) {
               <span className="text-[9px] sm:text-[10px] uppercase tracking-wide font-semibold" style={{ color: THEME.inkSoft }}>Past</span>
             )}
           </div>
-          <h3 className="font-semibold leading-tight truncate" style={{ color: THEME.ink, fontFamily: "'Fraunces', serif", fontSize: 16 }}>
+          <h3 className="font-semibold leading-tight truncate pb-0.5" style={{ color: THEME.ink, fontFamily: "'Fraunces', serif", fontSize: 16 }}>
             {ev.title}
           </h3>
           <p className="text-xs sm:text-sm mt-1 line-clamp-2" style={{ color: THEME.inkSoft }}>{ev.description}</p>
@@ -529,7 +530,7 @@ function EventDetailModal({ ev, onClose, onComment, onDelete, onEdit, isAdmin, c
               </button>
             </div>
           </div>
-          <h2 className="mt-3" style={{ fontFamily: "'Fraunces', serif", color: THEME.ink, fontSize: 22, fontWeight: 600, lineHeight: 1.2 }}>{ev.title}</h2>
+          <h2 className="mt-3 pb-1" style={{ fontFamily: "'Fraunces', serif", color: THEME.ink, fontSize: 22, fontWeight: 600, lineHeight: 1.2 }}>{ev.title}</h2>
           <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-2.5 text-xs" style={{ color: THEME.inkSoft }}>
             <span className="flex items-center gap-1"><Calendar size={13} /> {formatDateLabel(ev.date)}</span>
             <span className="flex items-center gap-1"><Clock size={13} /> {formatTime(ev.startTime)}{ev.endTime ? ` – ${formatTime(ev.endTime)}` : ""}</span>
@@ -804,7 +805,7 @@ export default function App() {
         select, input, textarea, button { font-family: 'Inter', sans-serif; }
       `}</style>
 
-      {/* Light Cream Responsive Header */}
+      {/* Header */}
       <header className="sticky top-0 z-40 backdrop-blur" style={{ backgroundColor: THEME.cream, borderBottom: `1px solid ${THEME.line}` }}>
         
         {/* DESKTOP HEADER (sm and up) */}
@@ -817,7 +818,7 @@ export default function App() {
             />
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h1 className="text-lg font-bold truncate leading-tight tracking-tight" style={{ fontFamily: "'Fraunces', serif", color: THEME.ink }}>
+                <h1 className="text-lg font-bold truncate leading-snug tracking-tight pb-0.5" style={{ fontFamily: "'Fraunces', serif", color: THEME.ink }}>
                   University Events
                 </h1>
                 <span className="inline-block text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-md" style={{ backgroundColor: THEME.ink, color: THEME.cream, fontFamily: "'IBM Plex Mono', monospace" }}>
@@ -831,7 +832,7 @@ export default function App() {
                   LinkedIn
                 </a>
                 <span>•</span>
-                <a href="https://www.instagram.com/chathilmkt?igsh=MTgwZGdlbnVwMzQzeA%3D%3D&utm_source=qr" target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: THEME.goldDeep }}>
+                <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: THEME.goldDeep }}>
                   Instagram
                 </a>
               </div>
@@ -882,7 +883,7 @@ export default function App() {
 
         {/* MOBILE HEADER (xs screens) */}
         <div className="flex sm:hidden flex-col px-3 py-2.5 gap-2 max-w-6xl mx-auto">
-          {/* Top Row: Logo, Title, Badge & Post Button */}
+          {/* Top Row */}
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
               <img 
@@ -891,10 +892,10 @@ export default function App() {
                 className="w-8 h-8 object-contain flex-shrink-0" 
               />
               <div className="min-w-0 flex flex-col justify-center">
-                <h1 className="text-sm font-bold truncate leading-none" style={{ fontFamily: "'Fraunces', serif", color: THEME.ink }}>
+                <h1 className="text-sm font-bold truncate leading-snug pb-1" style={{ fontFamily: "'Fraunces', serif", color: THEME.ink }}>
                   University Events
                 </h1>
-                <span className="mt-1 inline-block text-[8px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded" style={{ backgroundColor: THEME.ink, color: THEME.cream, fontFamily: "'IBM Plex Mono', monospace", width: "fit-content" }}>
+                <span className="inline-block text-[8px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded" style={{ backgroundColor: THEME.ink, color: THEME.cream, fontFamily: "'IBM Plex Mono', monospace", width: "fit-content" }}>
                   THE CAMPUS NOTICE BOARD
                 </span>
               </div>
@@ -910,7 +911,7 @@ export default function App() {
             </button>
           </div>
 
-          {/* Bottom Row: Byline, Social Links, Author & Admin */}
+          {/* Bottom Row */}
           <div className="flex items-center justify-between pt-1 text-[10px]" style={{ borderTop: `1px border-dashed ${THEME.line}`, color: THEME.inkSoft }}>
             <div className="flex items-center gap-1.5 truncate">
               <span>By Chathil Malsen</span>
@@ -919,7 +920,7 @@ export default function App() {
                 LinkedIn
               </a>
               <span>•</span>
-              <a href="https://instagram.com/chathilmalsen" target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: THEME.goldDeep }}>
+              <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: THEME.goldDeep }}>
                 Instagram
               </a>
             </div>
