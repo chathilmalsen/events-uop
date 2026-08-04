@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Calendar, List as ListIcon, Search, Plus, X, MapPin, Clock,
   MessageCircle, ChevronLeft, ChevronRight, Trash2, Upload,
-  Users, CalendarDays, AlertCircle, Edit, ShieldCheck, UserCheck, LogOut
+  Users, CalendarDays, AlertCircle, Edit, ShieldCheck, LogOut, User
 } from "lucide-react";
 
 // --- FIREBASE IMPORTS ---
@@ -19,19 +19,20 @@ import {
   arrayUnion 
 } from "firebase/firestore";
 
+// Hidden credentials verified on form submission (Not rendered in UI)
 const ADMIN_EMAIL = "ktchathilmalsencm@gmail.com";
 const ADMIN_PASS = "kt1234@CM";
 
 const FACULTIES = [
   { id: "engineering", name: "Faculty of Engineering", short: "ENG", color: "#2E5C8A" },
   { id: "medicine",    name: "Faculty of Medicine",    short: "MED", color: "#B0334D" },
-  { id: "management",  name: "Faculty of Managements",  short: "MANAGEMENT", color: "#B8860B" },
+  { id: "management",  name: "Faculty of Management",  short: "MANAGEMENT", color: "#B8860B" },
   { id: "arts",        name: "Faculty of Arts",        short: "ARTS", color: "#7A4FA3" },
   { id: "science",     name: "Faculty of Science",     short: "SCIENCE", color: "#6B2D3C" },
   { id: "dental",      name: "Faculty of Dental Science", short: "DENTAL", color: "#1E8A8A" },
   { id: "agriculture", name: "Faculty of Agriculture", short: "AGRI", color: "#7A4FA3" },
   { id: "allied health sciences", name: "Faculty of Allied Health", short: "Allied", color: "#6B2D3C" },
-  { id: "veterniary and animal medicine", name: "Faculty of Veterrinary medicine and Animal Science", short: "VET", color: "#1E8A8A" },
+  { id: "veterniary and animal medicine", name: "Faculty of Veterinary Medicine", short: "VET", color: "#1E8A8A" },
 ];
 
 const facultyOf = (id) => FACULTIES.find((f) => f.id === id) || { name: "General", short: "GEN", color: "#5B6472" };
@@ -228,7 +229,51 @@ const inputStyle = {
   color: THEME.ink, fontSize: 14, outline: "none",
 };
 
-// --- ADMIN LOGIN MODAL ---
+// --- SET USER NAME MODAL ---
+function SetUserModal({ onClose, onSave, currentName }) {
+  const [name, setName] = useState(currentName || "");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    onSave(name.trim());
+    onClose();
+  };
+
+  return (
+    <Modal onClose={onClose}>
+      <form onSubmit={handleSubmit} className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 style={{ fontFamily: "'Fraunces', serif", color: THEME.ink, fontSize: 20, fontWeight: 600 }} className="flex items-center gap-2">
+            <User size={20} color={THEME.gold} /> Set Author Name
+          </h2>
+          <button type="button" onClick={onClose} className="p-1.5 rounded-full hover:bg-black/5">
+            <X size={18} color={THEME.inkSoft} />
+          </button>
+        </div>
+        <p className="text-xs mb-4" style={{ color: THEME.inkSoft }}>
+          Set your name below. Events created matching this name will allow you to edit or delete them without admin rights.
+        </p>
+        <Field label="Your Author Name / ID" required>
+          <input
+            type="text"
+            style={inputStyle}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. Alex Perera"
+            autoFocus
+          />
+        </Field>
+        <div className="flex justify-end gap-2 mt-6">
+          <button type="button" onClick={onClose} className="px-4 py-2 rounded-full text-sm font-medium" style={{ color: THEME.inkSoft }}>Cancel</button>
+          <button type="submit" className="px-5 py-2 rounded-full text-sm font-semibold" style={{ backgroundColor: THEME.ink, color: "#FAF6EC" }}>Save Name</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+// --- WORKING ADMIN LOGIN MODAL ---
 function LoginModal({ onClose, onLoginSuccess }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -236,11 +281,12 @@ function LoginModal({ onClose, onLoginSuccess }) {
 
   const handleLogin = (e) => {
     e.preventDefault();
+    // Validate submitted credentials against hidden variables
     if (email.trim() === ADMIN_EMAIL && password === ADMIN_PASS) {
       onLoginSuccess();
       onClose();
     } else {
-      setError("Invalid admin email or password.");
+      setError("Invalid admin email or password. Access denied.");
     }
   };
 
@@ -249,22 +295,40 @@ function LoginModal({ onClose, onLoginSuccess }) {
       <form onSubmit={handleLogin} className="p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 style={{ fontFamily: "'Fraunces', serif", color: THEME.ink, fontSize: 22, fontWeight: 600 }} className="flex items-center gap-2">
-            <ShieldCheck size={22} color={THEME.gold} /> Admin Login
+            <ShieldCheck size={22} color={THEME.gold} /> Admin Sign In
           </h2>
           <button type="button" onClick={onClose} className="p-1.5 rounded-full hover:bg-black/5">
             <X size={18} color={THEME.inkSoft} />
           </button>
         </div>
+
         {error && (
           <div className="flex items-center gap-2 text-sm mb-4 px-3 py-2 rounded-lg" style={{ backgroundColor: "#B0334D14", color: "#B0334D" }}>
             <AlertCircle size={15} /> {error}
           </div>
         )}
+
         <Field label="Admin Email" required>
-          <input type="email" style={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="ktchathilmalsencm@gmail.com" />
+          <input
+            type="email"
+            style={inputStyle}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Enter registered admin email"
+            autoComplete="username"
+            required
+          />
         </Field>
-        <Field label="Password" required>
-          <input type="password" style={inputStyle} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+        <Field label="Admin Password" required>
+          <input
+            type="password"
+            style={inputStyle}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Enter password"
+            autoComplete="current-password"
+            required
+          />
         </Field>
         <div className="flex justify-end gap-2 mt-6">
           <button type="button" onClick={onClose} className="px-4 py-2 rounded-full text-sm font-medium" style={{ color: THEME.inkSoft }}>Cancel</button>
@@ -276,11 +340,21 @@ function LoginModal({ onClose, onLoginSuccess }) {
 }
 
 // --- ADD / EDIT EVENT MODAL ---
-function AddOrEditEventModal({ onClose, onSubmit, initialData }) {
-  const [form, setForm] = useState(initialData || {
-    title: "", faculty: "", date: "", startTime: "", endTime: "",
-    location: "", organizer: "", postedBy: "", posterUrl: "", description: "",
-  });
+function AddOrEditEventModal({ onClose, onSubmit, initialData, currentUser }) {
+  const [form, setForm] = useState(
+    initialData || {
+      title: "",
+      faculty: "",
+      date: "",
+      startTime: "",
+      endTime: "",
+      location: "",
+      organizer: "",
+      postedBy: currentUser || "",
+      posterUrl: "",
+      description: "",
+    }
+  );
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
@@ -364,8 +438,8 @@ function AddOrEditEventModal({ onClose, onSubmit, initialData }) {
             <Field label="Organiser / society" required>
               <input style={inputStyle} value={form.organizer} onChange={set("organizer")} placeholder="e.g. Students' Union" />
             </Field>
-            <Field label="Your name" required>
-              <input style={inputStyle} value={form.postedBy} onChange={set("postedBy")} placeholder="Posted by" />
+            <Field label="Your Author Name" required>
+              <input style={inputStyle} value={form.postedBy} onChange={set("postedBy")} placeholder="Your name (used for permissions)" />
             </Field>
           </div>
           <Field label="Event poster">
@@ -394,16 +468,16 @@ function AddOrEditEventModal({ onClose, onSubmit, initialData }) {
                 </button>
               )}
             </div>
-            <p className="text-xs mt-1.5" style={{ color: THEME.inkSoft }}>Optional. JPG or PNG, up to 1MB. You can also paste a link below instead.</p>
+            <p className="text-xs mt-1.5" style={{ color: THEME.inkSoft }}>Optional. JPG or PNG under 1MB, or paste an online image link below.</p>
             <input
               style={{ ...inputStyle, marginTop: 8 }}
               value={form.posterUrl.startsWith("data:") ? "" : form.posterUrl}
               onChange={set("posterUrl")}
-              placeholder="…or paste a poster image link"
+              placeholder="…or paste image link"
             />
           </Field>
           <Field label="Details">
-            <textarea style={{ ...inputStyle, minHeight: 90, resize: "vertical" }} value={form.description} onChange={set("description")} placeholder="What should people know before they come?" />
+            <textarea style={{ ...inputStyle, minHeight: 90, resize: "vertical" }} value={form.description} onChange={set("description")} placeholder="What should people know before coming?" />
           </Field>
         </div>
         <div className="flex items-center justify-end gap-2 px-6 py-4" style={{ borderTop: `1px solid ${THEME.line}` }}>
@@ -417,15 +491,15 @@ function AddOrEditEventModal({ onClose, onSubmit, initialData }) {
   );
 }
 
-// --- EVENT DETAILS MODAL (WITH FULL IMAGE & EDIT/DELETE) ---
-function EventDetailModal({ ev, onClose, onComment, onDelete, onEdit, isAdmin, currentUser }) {
+// --- EVENT DETAILS MODAL ---
+function EventDetailModal({ ev, onClose, onComment, onDelete, onEdit, isAdmin, currentUser, onPromptSetUser }) {
   const [name, setName] = useState(currentUser || "");
   const [text, setText] = useState("");
   const f = facultyOf(ev.faculty);
   const comments = ev.comments || [];
 
-  // Check if current user is admin OR author of this specific event
-  const isAuthor = currentUser && ev.postedBy && currentUser.trim().toLowerCase() === ev.postedBy.trim().toLowerCase();
+  // Match active author name or Admin override
+  const isAuthor = Boolean(currentUser && ev.postedBy && currentUser.trim().toLowerCase() === ev.postedBy.trim().toLowerCase());
   const canModify = isAdmin || isAuthor;
 
   const submit = (e) => {
@@ -445,7 +519,7 @@ function EventDetailModal({ ev, onClose, onComment, onDelete, onEdit, isAdmin, c
               <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: f.color, fontFamily: "'IBM Plex Mono', monospace" }}>{f.name}</span>
             </div>
             <div className="flex items-center gap-1">
-              {canModify && (
+              {canModify ? (
                 <>
                   <button onClick={() => onEdit(ev)} className="p-1.5 rounded-full hover:bg-black/5" title="Edit event">
                     <Edit size={17} color={THEME.ink} />
@@ -454,6 +528,15 @@ function EventDetailModal({ ev, onClose, onComment, onDelete, onEdit, isAdmin, c
                     <Trash2 size={17} color="#B0334D" />
                   </button>
                 </>
+              ) : (
+                <button
+                  onClick={onPromptSetUser}
+                  className="text-xs px-2.5 py-1 rounded-full border border-dashed flex items-center gap-1"
+                  style={{ borderColor: THEME.line, color: THEME.inkSoft }}
+                  title="Claim identity to edit"
+                >
+                  <User size={12} /> Edit as Author
+                </button>
               )}
               <button onClick={onClose} className="p-1.5 rounded-full hover:bg-black/5">
                 <X size={18} color={THEME.inkSoft} />
@@ -487,12 +570,12 @@ function EventDetailModal({ ev, onClose, onComment, onDelete, onEdit, isAdmin, c
           </h3>
           <div className="space-y-3 mb-4">
             {comments.length === 0 && (
-              <p className="text-sm" style={{ color: THEME.inkSoft }}>No comments yet. Ask a question or share something useful for others going.</p>
+              <p className="text-sm" style={{ color: THEME.inkSoft }}>No comments yet. Be the first to start a conversation!</p>
             )}
             {comments.map((c) => (
               <div key={c.id || uid()} className="flex gap-2.5">
                 <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0" style={{ backgroundColor: THEME.ink, color: THEME.cream }}>
-                  {c.author.charAt(0).toUpperCase()}
+                  {(c.author || "A").charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm"><span className="font-semibold" style={{ color: THEME.ink }}>{c.author}</span></p>
@@ -605,10 +688,11 @@ export default function App() {
   // Modals
   const [showAdd, setShowAdd] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
+  const [showUserModal, setShowUserModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
 
-  // User State
+  // User State & Roles
   const [isAdmin, setIsAdmin] = useState(false);
   const [currentUser, setCurrentUser] = useState(localStorage.getItem("cg_user_name") || "");
 
@@ -616,7 +700,12 @@ export default function App() {
   const [calMonth, setCalMonth] = useState(now.getMonth());
   const [calYear, setCalYear] = useState(now.getFullYear());
 
-  // --- Real-time Firebase Sync ---
+  const handleSaveUserName = (name) => {
+    localStorage.setItem("cg_user_name", name);
+    setCurrentUser(name);
+  };
+
+  // --- Real-time Firebase Listener ---
   useEffect(() => {
     const q = query(collection(db, "events"), orderBy("createdAt", "desc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -636,8 +725,7 @@ export default function App() {
 
   const addEvent = async (ev) => {
     try {
-      localStorage.setItem("cg_user_name", ev.postedBy);
-      setCurrentUser(ev.postedBy);
+      handleSaveUserName(ev.postedBy);
       await addDoc(collection(db, "events"), {
         ...ev,
         createdAt: Date.now(),
@@ -645,7 +733,7 @@ export default function App() {
       setShowAdd(false);
     } catch (error) {
       console.error("Error adding event:", error);
-      alert("Could not save event to cloud. Please try again.");
+      alert("Could not save event to database. Please try again.");
     }
   };
 
@@ -673,7 +761,7 @@ export default function App() {
 
   const deleteEvent = async (eventId) => {
     const ev = events.find((e) => e.id === eventId);
-    if (!window.confirm(`Remove "${ev ? ev.title : "this event"}"? This can't be undone.`)) return;
+    if (!window.confirm(`Delete "${ev ? ev.title : "this event"}"?`)) return;
     try {
       await deleteDoc(doc(db, "events", eventId));
       setSelectedEvent(null);
@@ -779,6 +867,16 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowUserModal(true)}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold"
+              style={{ backgroundColor: "#EFE9D8", color: THEME.ink }}
+              title="Set your author name"
+            >
+              <User size={13} /> {currentUser ? currentUser : "Set Author ID"}
+            </button>
+
+            {/* Functional Admin Toggle & Logout */}
             {isAdmin ? (
               <button
                 onClick={() => setIsAdmin(false)}
@@ -786,7 +884,7 @@ export default function App() {
                 style={{ backgroundColor: "#B0334D14", color: "#B0334D" }}
                 title="Sign out of Admin mode"
               >
-                <LogOut size={13} /> Admin Signed In
+                <LogOut size={13} /> Admin Active
               </button>
             ) : (
               <button
@@ -827,7 +925,7 @@ export default function App() {
         </div>
       </section>
 
-      {/* Controls */}
+      {/* Filter Controls */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-4">
         <div className="flex flex-wrap items-center gap-2 mb-4">
           <button
@@ -880,18 +978,18 @@ export default function App() {
         </div>
       </section>
 
-      {/* Main */}
+      {/* Main Board View */}
       <main className="max-w-6xl mx-auto px-4 sm:px-6 pb-20">
         {loading ? (
-          <p className="text-sm py-10 text-center" style={{ color: THEME.inkSoft }}>Loading the board from cloud database…</p>
+          <p className="text-sm py-10 text-center" style={{ color: THEME.inkSoft }}>Loading live events from cloud database…</p>
         ) : view === "calendar" ? (
           <div className="rounded-2xl p-5" style={{ backgroundColor: THEME.card, border: `1px solid ${THEME.line}` }}>
-            <CalendarView events={filtered} month={calMonth} setMonth={setCalMonth} year={calYear} setYear={setSelectedEvent} />
+            <CalendarView events={filtered} month={calMonth} setMonth={setCalMonth} year={calYear} setYear={setCalYear} onOpen={setSelectedEvent} />
           </div>
         ) : grouped.length === 0 ? (
           <div className="text-center py-16">
             <p style={{ fontFamily: "'Fraunces', serif", fontSize: 20, color: THEME.ink }}>Nothing here yet</p>
-            <p className="text-sm mt-1" style={{ color: THEME.inkSoft }}>Try a different faculty, clear your search, or post the first event.</p>
+            <p className="text-sm mt-1" style={{ color: THEME.inkSoft }}>Try a different faculty, clear your search, or post an event.</p>
           </div>
         ) : (
           <div className="space-y-10">
@@ -919,12 +1017,13 @@ export default function App() {
       <footer className="text-center py-8 text-xs" style={{ color: THEME.inkSoft, borderTop: `1px solid ${THEME.line}` }}>
         University Events · a shared notice board for every faculty
         <br />
-        Created by Chathil Malsen , Mechanical Engineering Undergraduate, University of Peradeniya
+        Created by Chathil Malsen, Mechanical Engineering Undergraduate, University of Peradeniya
       </footer>
 
       {showLogin && <LoginModal onClose={() => setShowLogin(false)} onLoginSuccess={() => setIsAdmin(true)} />}
-      {showAdd && <AddOrEditEventModal onClose={() => setShowAdd(false)} onSubmit={addEvent} />}
-      {editingEvent && <AddOrEditEventModal onClose={() => setEditingEvent(null)} onSubmit={updateEvent} initialData={editingEvent} />}
+      {showUserModal && <SetUserModal onClose={() => setShowUserModal(false)} onSave={handleSaveUserName} currentName={currentUser} />}
+      {showAdd && <AddOrEditEventModal onClose={() => setShowAdd(false)} onSubmit={addEvent} currentUser={currentUser} />}
+      {editingEvent && <AddOrEditEventModal onClose={() => setEditingEvent(null)} onSubmit={updateEvent} initialData={editingEvent} currentUser={currentUser} />}
       
       {selectedEvent && (
         <EventDetailModal
@@ -935,6 +1034,7 @@ export default function App() {
           onEdit={(ev) => setEditingEvent(ev)}
           isAdmin={isAdmin}
           currentUser={currentUser}
+          onPromptSetUser={() => setShowUserModal(true)}
         />
       )}
     </div>
