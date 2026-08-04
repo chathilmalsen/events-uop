@@ -29,14 +29,6 @@ import {
   onAuthStateChanged
 } from "firebase/auth";
 
-// SECURITY NOTE: the admin password used to live here as a plain string
-// (ADMIN_PASS = "..."), which meant anyone opening dev tools or viewing
-// the JS bundle could read it and delete/edit any event on the live site.
-// It has been removed. Admin sign-in now goes through Firebase
-// Authentication (see firebase.js) — create the admin account once in the
-// Firebase console under Authentication > Users, and the password never
-// ships to the browser. Only the email is kept here, purely to label who
-// counts as "admin" once Firebase confirms the sign-in.
 const ADMIN_EMAIL = "ktchathilmalsencm@gmail.com";
 const INSTAGRAM_URL = "https://www.instagram.com/chathilmkt?igsh=MTgwZGdlbnVwMzQzeA%3D%3D&utm_source=qr";
 
@@ -52,7 +44,6 @@ const FACULTIES = [
   { id: "veterniary and animal medicine", name: "Faculty of Veterinary Medicine", short: "VET", color: "#1E8A8A" },
 ];
 
-// Feature 15: Event Categories
 const CATEGORIES = [
   { id: "academic",      name: "Academic",         icon: "🎓", color: "#2E5C8A" },
   { id: "sports",        name: "Sports",           icon: "⚽", color: "#1E8A5C" },
@@ -78,19 +69,15 @@ const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢"];
 const facultyOf = (id) => FACULTIES.find((f) => f.id === id) || { name: "General", short: "GEN", color: "#5B6472" };
 const categoryOf = (id) => CATEGORIES.find((c) => c.id === id) || null;
 
-// Feature 18: Dark Mode — light/dark palettes.
-// THEME is intentionally a mutable module-level binding (not React state):
-// every component in this file reads THEME.xxx at render time, so
-// reassigning it inside App() before children render repaints the whole
-// tree without having to thread a theme prop/context through every
-// component individually.
 const LIGHT_THEME = {
   cream: "#FAF6EC", card: "#FFFDF8", ink: "#1B2740", inkSoft: "#5B6472",
   gold: "#C9A227", goldDeep: "#A9820F", line: "#E6DFCD", danger: "#B0334D",
+  headerBg: "#111726", headerText: "#FFFFFF", headerSoft: "#9AA3B8"
 };
 const DARK_THEME = {
   cream: "#10141C", card: "#171C28", ink: "#EEF0F6", inkSoft: "#9AA3B8",
   gold: "#E8C158", goldDeep: "#F0CE72", line: "#2A3040", danger: "#E5657F",
+  headerBg: "#0B0E17", headerText: "#FFFFFF", headerSoft: "#9AA3B8"
 };
 let THEME = LIGHT_THEME;
 
@@ -154,7 +141,6 @@ function fileToDataUrl(file) {
   });
 }
 
-// --- .ics calendar export ---
 function icsDateTime(dateStr, timeStr) {
   const [y, m, d] = dateStr.split("-").map(Number);
   const [h, min] = (timeStr || "00:00").split(":").map(Number);
@@ -192,18 +178,12 @@ function downloadIcsForEvent(ev) {
   URL.revokeObjectURL(url);
 }
 
-// Feature: Event Notifications (browser-side reminders)
-// True push/email notifications need a server (Cloud Functions + FCM/
-// SendGrid) to fire while the tab is closed. This is the best in-browser
-// equivalent: it asks for Notification permission and schedules a local
-// timer while the tab stays open, then persists the choice so a reminder
-// set today still tries to fire if the tab is open again later.
 function msUntil(ev, minutesBefore) {
   return eventDateTime(ev).getTime() - minutesBefore * 60 * 1000 - Date.now();
 }
 function scheduleLocalReminder(ev, minutesBefore) {
   const delay = msUntil(ev, minutesBefore);
-  if (delay <= 0 || delay > 2 ** 31 - 1) return; // too far out / already past for setTimeout's max delay
+  if (delay <= 0 || delay > 2 ** 31 - 1) return;
   setTimeout(() => {
     if (Notification.permission === "granted") {
       new Notification(`Starting soon: ${ev.title}`, {
@@ -217,7 +197,6 @@ function getReminders() {
 }
 function saveReminders(obj) { localStorage.setItem("cg_reminders", JSON.stringify(obj)); }
 
-// Feature 9: Save Events (bookmarks) — stored locally per device.
 function getBookmarks() {
   try { return JSON.parse(localStorage.getItem("cg_bookmarks") || "[]"); } catch { return []; }
 }
@@ -263,7 +242,6 @@ function CategoryBadge({ category, size = "sm" }) {
   );
 }
 
-// --- Countdown timer (Event Details) ---
 function CountdownTimer({ ev }) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -292,7 +270,6 @@ function CountdownTimer({ ev }) {
   );
 }
 
-// --- Share menu (Feature 17: Social Sharing) ---
 function ShareMenu({ ev, onClose }) {
   const [copied, setCopied] = useState(false);
   const url = shareUrlFor(ev);
@@ -418,7 +395,6 @@ function EventCard({ ev, onOpen, isBookmarked, onToggleBookmark, isLiked, onTogg
         </div>
       </button>
 
-      {/* Quick actions row */}
       <div className="flex items-center gap-1 px-3.5 sm:px-4 pb-3 pt-0.5 relative">
         <button
           onClick={(e) => { e.stopPropagation(); onToggleLike(ev); }}
@@ -1247,25 +1223,26 @@ function CalendarView({ events, month, setMonth, year, setYear, onOpen }) {
   );
 }
 
-// Ambient animated light-beam header, echoing the reference: a few soft
-// diagonal streaks of light drifting slowly across a dark field. Pure CSS/
-// SVG, no dependencies — renders behind the header content and stays subtle
-// enough not to fight with the text sitting on top of it.
+// Shiny live animated light-beam & metallic shine header background
 function HeaderGlow() {
   const beams = [
-    { top: "-10%", width: "150%", left: "-25%", delay: "0s", duration: "14s", thickness: 2, opacity: 0.55 },
-    { top: "18%", width: "170%", left: "-40%", delay: "-4s", duration: "18s", thickness: 1.5, opacity: 0.35 },
-    { top: "48%", width: "160%", left: "-30%", delay: "-9s", duration: "16s", thickness: 2.5, opacity: 0.45 },
-    { top: "78%", width: "180%", left: "-45%", delay: "-2s", duration: "20s", thickness: 1.5, opacity: 0.3 },
+    { top: "-10%", width: "150%", left: "-25%", delay: "0s", duration: "12s", thickness: 2.5, opacity: 0.6 },
+    { top: "20%", width: "170%", left: "-40%", delay: "-3s", duration: "16s", thickness: 2, opacity: 0.4 },
+    { top: "50%", width: "160%", left: "-30%", delay: "-7s", duration: "14s", thickness: 3, opacity: 0.5 },
+    { top: "80%", width: "180%", left: "-45%", delay: "-2s", duration: "18s", thickness: 2, opacity: 0.35 },
   ];
+
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+      {/* Radiant radial background glow */}
       <div
         style={{
           position: "absolute", inset: 0,
-          background: `radial-gradient(ellipse at 15% 0%, ${THEME.gold}22, transparent 60%)`,
+          background: `radial-gradient(ellipse at 20% -10%, ${THEME.gold}33 0%, transparent 70%)`,
         }}
       />
+
+      {/* Dynamic Animated Beams */}
       {beams.map((b, i) => (
         <span
           key={i}
@@ -1276,35 +1253,47 @@ function HeaderGlow() {
             left: b.left,
             width: b.width,
             height: b.thickness,
-            background: `linear-gradient(90deg, transparent 0%, ${THEME.gold}00 5%, ${THEME.gold}cc 45%, ${THEME.goldDeep}cc 55%, transparent 95%)`,
-            transform: "rotate(-6deg)",
-            filter: "blur(1.5px)",
+            background: `linear-gradient(90deg, transparent 0%, ${THEME.gold}00 10%, ${THEME.gold}ff 50%, ${THEME.goldDeep}ff 60%, transparent 100%)`,
+            transform: "rotate(-5deg)",
+            filter: "blur(1px)",
             opacity: b.opacity,
             animation: `beamDrift ${b.duration} ease-in-out ${b.delay} infinite`,
-            boxShadow: `0 0 8px ${THEME.gold}55`,
+            boxShadow: `0 0 12px ${THEME.gold}88`,
           }}
         />
       ))}
+
+      {/* Shiny Moving Metallic Overlay Pass */}
+      <div
+        className="shiny-sweep"
+        style={{
+          position: "absolute",
+          top: 0,
+          bottom: 0,
+          width: "40%",
+          background: `linear-gradient(90deg, transparent, ${THEME.gold}1a, rgba(255,255,255,0.12), ${THEME.gold}1a, transparent)`,
+          transform: "skewX(-25deg)",
+          animation: "shineSweep 8s ease-in-out infinite",
+        }}
+      />
     </div>
   );
 }
 
 function ThemeToggle({ mode, setMode }) {
-  // Always sits on the dark header banner, so it uses a fixed light-on-dark
-  // palette rather than THEME (which flips with the site's own theme).
   const opts = [
     { m: "light", icon: <Sun size={13} /> },
     { m: "dark", icon: <Moon size={13} /> },
     { m: "system", icon: <Monitor size={13} /> },
   ];
   return (
-    <div className="flex items-center gap-0.5 rounded-full p-1" style={{ backgroundColor: "rgba(255,255,255,0.1)" }}>
+    <div className="flex items-center gap-0.5 rounded-full p-1" style={{ backgroundColor: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.18)" }}>
       {opts.map((o) => (
         <button
           key={o.m}
           onClick={() => setMode(o.m)}
-          className="p-1.5 rounded-full"
-          style={{ backgroundColor: mode === o.m ? THEME.gold : "transparent", color: mode === o.m ? "#1B2740" : "#B9C0D4" }}
+          className="p-1.5 rounded-full transition-colors"
+          style={{ backgroundColor: mode === o.m ? THEME.gold : "transparent", color: mode === o.m ? "#1B2740" : "#E2E8F0" }}
           title={o.m}
         >
           {o.icon}
@@ -1317,13 +1306,13 @@ function ThemeToggle({ mode, setMode }) {
 export default function App() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState("list"); // list | calendar | saved
+  const [view, setView] = useState("list");
   const [facultyFilter, setFacultyFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [timeFilter, setTimeFilter] = useState("upcoming");
-  const [quickDate, setQuickDate] = useState("any"); // any | today | tomorrow | week | month
-  const [priceFilter, setPriceFilter] = useState("any"); // any | free | paid
-  const [modeFilter, setModeFilter] = useState("any"); // any | online | offline
+  const [quickDate, setQuickDate] = useState("any");
+  const [priceFilter, setPriceFilter] = useState("any");
+  const [modeFilter, setModeFilter] = useState("any");
   const [regOnly, setRegOnly] = useState(false);
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -1338,11 +1327,11 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(localStorage.getItem("cg_user_name") || "");
   const [bookmarks, setBookmarks] = useState(getBookmarks());
 
-  // Feature 18: Dark Mode
   const [themeMode, setThemeModeState] = useState(localStorage.getItem("cg_theme_mode") || "light");
   const [systemDark, setSystemDark] = useState(
     typeof window !== "undefined" && window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)").matches : false
   );
+
   useEffect(() => {
     if (!window.matchMedia) return;
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
@@ -1350,9 +1339,10 @@ export default function App() {
     mq.addEventListener ? mq.addEventListener("change", handler) : mq.addListener(handler);
     return () => (mq.removeEventListener ? mq.removeEventListener("change", handler) : mq.removeListener(handler));
   }, []);
+
   const setThemeMode = (m) => { localStorage.setItem("cg_theme_mode", m); setThemeModeState(m); };
   const effectiveDark = themeMode === "dark" || (themeMode === "system" && systemDark);
-  THEME = effectiveDark ? DARK_THEME : LIGHT_THEME; // reassigned before children render, see note above
+  THEME = effectiveDark ? DARK_THEME : LIGHT_THEME;
 
   const anonId = getAnonId();
   const now = new Date();
@@ -1399,7 +1389,6 @@ export default function App() {
     recordView(ev);
   };
 
-  // Open directly from a shared link (?event=<id>)
   useEffect(() => {
     if (loading || events.length === 0) return;
     const params = new URLSearchParams(window.location.search);
@@ -1408,7 +1397,6 @@ export default function App() {
       const ev = events.find((e) => e.id === id);
       if (ev) openEvent(ev);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading]);
 
   useEffect(() => {
@@ -1508,7 +1496,6 @@ export default function App() {
     }
   };
 
-  // Feature 14: Advanced Search
   const filtered = useMemo(() => {
     const today = new Date();
     return events.filter((e) => {
@@ -1573,11 +1560,10 @@ export default function App() {
 
   const upcomingCount = useMemo(() => events.filter((e) => !isPastEvent(e)).length, [events]);
 
-  // Trending = meaningfully above the median engagement, so it adapts as the board grows.
   const trendingIds = useMemo(() => {
     const scored = events.map((e) => ({ id: e.id, score: (e.views || 0) + (e.likes || []).length * 5 }));
     const sorted = [...scored].sort((a, b) => b.score - a.score);
-    const cutoff = Math.max(3, 1); // top few
+    const cutoff = Math.max(3, 1);
     return new Set(sorted.filter((s) => s.score > 0).slice(0, cutoff).map((s) => s.id));
   }, [events]);
 
@@ -1590,42 +1576,53 @@ export default function App() {
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes riseIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes beamDrift {
-          0%   { transform: translateX(-6%) rotate(-6deg); opacity: 0; }
-          15%  { opacity: var(--beam-opacity, 0.45); }
-          50%  { transform: translateX(6%) rotate(-6deg); }
-          85%  { opacity: var(--beam-opacity, 0.45); }
-          100% { transform: translateX(-6%) rotate(-6deg); opacity: 0; }
+          0%   { transform: translateX(-10%) rotate(-5deg); opacity: 0.1; }
+          20%  { opacity: 0.7; }
+          50%  { transform: translateX(10%) rotate(-5deg); }
+          80%  { opacity: 0.7; }
+          100% { transform: translateX(-10%) rotate(-5deg); opacity: 0.1; }
+        }
+        @keyframes shineSweep {
+          0%   { left: -50%; opacity: 0; }
+          30%  { opacity: 0.8; }
+          60%  { left: 120%; opacity: 0.8; }
+          100% { left: 120%; opacity: 0; }
         }
         @media (prefers-reduced-motion: reduce) {
-          .header-beam { animation: none !important; opacity: 0.25 !important; }
+          .header-beam, .shiny-sweep { animation: none !important; opacity: 0.25 !important; }
         }
         select, input, textarea, button { font-family: 'Inter', sans-serif; }
       `}</style>
 
-      {/* Header */}
-      <header className="sticky top-0 z-40 backdrop-blur relative overflow-hidden" style={{ backgroundColor: THEME.ink, borderBottom: `1px solid ${THEME.line}` }}>
+      {/* Header with High-Contrast Text & Shiny Effect */}
+      <header
+        className="sticky top-0 z-40 backdrop-blur relative overflow-hidden transition-colors"
+        style={{
+          backgroundColor: THEME.headerBg,
+          borderBottom: `1px solid ${THEME.line}`,
+          boxShadow: "0 4px 20px rgba(0,0,0,0.25)"
+        }}
+      >
         <HeaderGlow />
 
-        {/* DESKTOP HEADER (sm and up) — fixed light-on-dark palette since the
-            beam animation needs a dark field to read the way it does in the
-            reference image, independent of the site's light/dark mode. */}
-        <div className="hidden sm:flex max-w-6xl mx-auto px-6 py-3 items-center justify-between gap-4 relative z-10">
-          <div className="flex items-center gap-3 min-w-0">
+        {/* DESKTOP HEADER */}
+        <div className="hidden sm:flex max-w-6xl mx-auto px-6 py-3.5 items-center justify-between gap-4 relative z-10">
+          <div className="flex items-center gap-3.5 min-w-0">
             <img
               src="/uop-logo.png"
               alt="Logo"
-              className="w-11 h-11 object-contain flex-shrink-0"
+              className="w-11 h-11 object-contain flex-shrink-0 drop-shadow-md"
             />
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg font-bold truncate leading-snug tracking-tight pb-0.5" style={{ fontFamily: "'Fraunces', serif", color: "#F5F1E4" }}>
+              <div className="flex items-center gap-2.5">
+                <h1 className="text-xl font-bold truncate leading-snug tracking-tight" style={{ fontFamily: "'Fraunces', serif", color: THEME.headerText }}>
                   Campus Connect
                 </h1>
-                <span className="inline-block text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-md" style={{ backgroundColor: "rgba(255,255,255,0.14)", color: "#F5F1E4", fontFamily: "'IBM Plex Mono', monospace" }}>
+                <span className="inline-block text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-md border" style={{ backgroundColor: "rgba(201,162,39,0.15)", borderColor: THEME.gold, color: THEME.gold, fontFamily: "'IBM Plex Mono', monospace" }}>
                   THE CAMPUS NOTICE BOARD
                 </span>
               </div>
-              <div className="flex items-center gap-1.5 text-xs leading-tight mt-0.5" style={{ color: "#B9C0D4" }}>
+              <div className="flex items-center gap-2 text-xs leading-tight mt-0.5" style={{ color: THEME.headerSoft }}>
                 <span>By Chathil Malsen</span>
                 <span>•</span>
                 <a href="https://www.linkedin.com/in/chathilmalsen" target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: THEME.gold }}>
@@ -1639,14 +1636,14 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2.5 flex-shrink-0">
             <ThemeToggle mode={themeMode} setMode={setThemeMode} />
             <button
               onClick={() => setShowUserModal(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors hover:bg-white/10"
-              style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.18)", color: "#F5F1E4" }}
+              style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", color: THEME.headerText }}
             >
-              <User size={14} color="#F5F1E4" />
+              <User size={14} color={THEME.headerText} />
               <span className="max-w-[100px] truncate">{currentUser ? currentUser : "Author ID"}</span>
             </button>
 
@@ -1663,7 +1660,7 @@ export default function App() {
               <button
                 onClick={() => setShowLogin(true)}
                 className="px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1 border hover:bg-white/10"
-                style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.18)", color: "#F5F1E4" }}
+                style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", color: THEME.headerText }}
                 title="Admin Login"
               >
                 <ShieldCheck size={14} />
@@ -1673,8 +1670,8 @@ export default function App() {
 
             <button
               onClick={() => setShowAdd(true)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-transform active:scale-95 shadow-sm hover:shadow"
-              style={{ backgroundColor: THEME.gold, color: "#1B2740" }}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-transform active:scale-95 shadow-md hover:shadow-lg"
+              style={{ backgroundColor: THEME.gold, color: "#111726" }}
             >
               <CalendarPlus size={16} />
               <span>Post Event</span>
@@ -1682,21 +1679,20 @@ export default function App() {
           </div>
         </div>
 
-        {/* MOBILE HEADER (xs screens) */}
-        <div className="flex sm:hidden flex-col px-3 py-2.5 gap-2 max-w-6xl mx-auto relative z-10">
-          {/* Top Row */}
+        {/* MOBILE HEADER */}
+        <div className="flex sm:hidden flex-col px-3.5 py-3 gap-2.5 max-w-6xl mx-auto relative z-10">
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
+            <div className="flex items-center gap-2.5 min-w-0">
               <img
                 src="/uop-logo.png"
                 alt="Logo"
-                className="w-8 h-8 object-contain flex-shrink-0"
+                className="w-9 h-9 object-contain flex-shrink-0"
               />
               <div className="min-w-0 flex flex-col justify-center">
-                <h1 className="text-sm font-bold truncate leading-snug pb-1" style={{ fontFamily: "'Fraunces', serif", color: "#F5F1E4" }}>
+                <h1 className="text-base font-bold truncate leading-snug" style={{ fontFamily: "'Fraunces', serif", color: THEME.headerText }}>
                   Campus Connect
                 </h1>
-                <span className="inline-block text-[8px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded" style={{ backgroundColor: "rgba(255,255,255,0.14)", color: "#F5F1E4", fontFamily: "'IBM Plex Mono', monospace", width: "fit-content" }}>
+                <span className="inline-block text-[8px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded border" style={{ backgroundColor: "rgba(201,162,39,0.15)", borderColor: THEME.gold, color: THEME.gold, fontFamily: "'IBM Plex Mono', monospace", width: "fit-content" }}>
                   THE CAMPUS NOTICE BOARD
                 </span>
               </div>
@@ -1705,15 +1701,14 @@ export default function App() {
             <button
               onClick={() => setShowAdd(true)}
               className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold transition-transform active:scale-95 shadow-sm flex-shrink-0"
-              style={{ backgroundColor: THEME.gold, color: "#1B2740" }}
+              style={{ backgroundColor: THEME.gold, color: "#111726" }}
             >
               <CalendarPlus size={14} />
               <span>Post Event</span>
             </button>
           </div>
 
-          {/* Bottom Row */}
-          <div className="flex items-center justify-between pt-1 text-[10px]" style={{ borderTop: `1px dashed rgba(255,255,255,0.18)`, color: "#B9C0D4" }}>
+          <div className="flex items-center justify-between pt-1.5 text-[10px]" style={{ borderTop: `1px dashed rgba(255,255,255,0.15)`, color: THEME.headerSoft }}>
             <div className="flex items-center gap-1.5 truncate">
               <span>By Chathil Malsen</span>
               <span>•</span>
@@ -1731,9 +1726,9 @@ export default function App() {
               <button
                 onClick={() => setShowUserModal(true)}
                 className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border"
-                style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.18)", color: "#F5F1E4" }}
+                style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", color: THEME.headerText }}
               >
-                <User size={10} color="#F5F1E4" />
+                <User size={10} color={THEME.headerText} />
                 <span className="max-w-[55px] truncate">{currentUser ? currentUser : "Author ID"}</span>
               </button>
 
@@ -1749,7 +1744,7 @@ export default function App() {
                 <button
                   onClick={() => setShowLogin(true)}
                   className="p-1 rounded-full border"
-                  style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.18)", color: "#F5F1E4" }}
+                  style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", color: THEME.headerText }}
                   title="Admin Login"
                 >
                   <ShieldCheck size={11} />
@@ -1758,7 +1753,6 @@ export default function App() {
             </div>
           </div>
         </div>
-
       </header>
 
       {/* Hero Section */}
@@ -1867,7 +1861,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* Feature 14: Advanced Search — extra filters panel */}
         {showFilters && (
           <div className="mt-3 p-3.5 rounded-2xl flex flex-col gap-3" style={{ backgroundColor: THEME.card, border: `1px solid ${THEME.line}` }}>
             <div>
