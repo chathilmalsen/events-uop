@@ -612,7 +612,7 @@ function CalendarView({ events, month, setMonth, year, setYear, onOpen }) {
         </div>
       </div>
       <div className="grid grid-cols-7 gap-1 mb-1 text-center text-[10px] font-semibold uppercase tracking-wide" style={{ color: THEME.inkSoft }}>
-        {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => <div key={i} className="py-1">{d}</div>)}
+        {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => <div key={i}>{d}</div>)}
       </div>
       <div className="grid grid-cols-7 gap-1">
         {cells.map((d, i) => {
@@ -804,27 +804,27 @@ export default function App() {
         select, input, textarea, button { font-family: 'Inter', sans-serif; }
       `}</style>
 
-      {/* Light Cream Header */}
+      {/* Light Cream Responsive Header */}
       <header className="sticky top-0 z-40 backdrop-blur" style={{ backgroundColor: THEME.cream, borderBottom: `1px solid ${THEME.line}` }}>
-        <div className="max-w-6xl mx-auto px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-2">
-          
-          {/* Logo & Header Info */}
-          <div className="flex items-center gap-2.5 min-w-0">
+        
+        {/* DESKTOP HEADER (sm and up) */}
+        <div className="hidden sm:flex max-w-6xl mx-auto px-6 py-3 items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
             <img 
               src="/uop-logo.png" 
               alt="Logo" 
-              className="w-9 h-9 sm:w-11 sm:h-11 object-contain flex-shrink-0" 
+              className="w-11 h-11 object-contain flex-shrink-0" 
             />
             <div className="min-w-0">
-              <h1 className="text-base sm:text-lg font-bold truncate leading-tight tracking-tight" style={{ fontFamily: "'Fraunces', serif", color: THEME.ink }}>
-                University Events
-              </h1>
-              <div className="mt-0.5">
-                <span className="inline-block text-[9px] sm:text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-md" style={{ backgroundColor: THEME.ink, color: THEME.cream, fontFamily: "'IBM Plex Mono', monospace" }}>
+              <div className="flex items-center gap-2">
+                <h1 className="text-lg font-bold truncate leading-tight tracking-tight" style={{ fontFamily: "'Fraunces', serif", color: THEME.ink }}>
+                  University Events
+                </h1>
+                <span className="inline-block text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-md" style={{ backgroundColor: THEME.ink, color: THEME.cream, fontFamily: "'IBM Plex Mono', monospace" }}>
                   THE CAMPUS NOTICE BOARD
                 </span>
               </div>
-              <div className="flex items-center gap-1.5 text-[11px] leading-tight mt-1" style={{ color: THEME.inkSoft }}>
+              <div className="flex items-center gap-1.5 text-xs leading-tight mt-0.5" style={{ color: THEME.inkSoft }}>
                 <span>By Chathil Malsen</span>
                 <span>•</span>
                 <a href="https://www.linkedin.com/in/chathilmalsen" target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: THEME.goldDeep }}>
@@ -838,42 +838,40 @@ export default function App() {
             </div>
           </div>
 
-          {/* Navigation Action Buttons */}
-          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <button
               onClick={() => setShowUserModal(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors hover:bg-black/5"
               style={{ backgroundColor: THEME.card, borderColor: THEME.line, color: THEME.ink }}
             >
               <User size={14} color={THEME.ink} />
-              <span className="max-w-[70px] sm:max-w-[100px] truncate">{currentUser ? currentUser : "Author ID"}</span>
+              <span className="max-w-[100px] truncate">{currentUser ? currentUser : "Author ID"}</span>
             </button>
 
             {isAdmin ? (
               <button
                 onClick={() => setIsAdmin(false)}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-semibold"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold"
                 style={{ backgroundColor: "#B0334D14", color: "#B0334D" }}
               >
                 <LogOut size={13} />
-                <span className="hidden sm:inline">Admin Active</span>
+                <span>Admin Active</span>
               </button>
             ) : (
               <button
                 onClick={() => setShowLogin(true)}
-                className="p-1.5 sm:px-3 sm:py-1.5 rounded-full text-xs font-semibold flex items-center gap-1 border hover:bg-black/5"
+                className="px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1 border hover:bg-black/5"
                 style={{ backgroundColor: THEME.card, borderColor: THEME.line, color: THEME.ink }}
                 title="Admin Login"
               >
                 <ShieldCheck size={14} />
-                <span className="hidden sm:inline">Admin</span>
+                <span>Admin</span>
               </button>
             )}
 
-            {/* Interesting & Professional Post Button */}
             <button
               onClick={() => setShowAdd(true)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-semibold transition-transform active:scale-95 shadow-sm hover:shadow"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-transform active:scale-95 shadow-sm hover:shadow"
               style={{ backgroundColor: THEME.gold, color: THEME.ink }}
             >
               <CalendarPlus size={16} />
@@ -881,6 +879,83 @@ export default function App() {
             </button>
           </div>
         </div>
+
+        {/* MOBILE HEADER (xs screens) */}
+        <div className="flex sm:hidden flex-col px-3 py-2.5 gap-2 max-w-6xl mx-auto">
+          {/* Top Row: Logo, Title, Badge & Post Button */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <img 
+                src="/uop-logo.png" 
+                alt="Logo" 
+                className="w-8 h-8 object-contain flex-shrink-0" 
+              />
+              <div className="min-w-0 flex flex-col justify-center">
+                <h1 className="text-sm font-bold truncate leading-none" style={{ fontFamily: "'Fraunces', serif", color: THEME.ink }}>
+                  University Events
+                </h1>
+                <span className="mt-1 inline-block text-[8px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded" style={{ backgroundColor: THEME.ink, color: THEME.cream, fontFamily: "'IBM Plex Mono', monospace", width: "fit-content" }}>
+                  THE CAMPUS NOTICE BOARD
+                </span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowAdd(true)}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold transition-transform active:scale-95 shadow-sm flex-shrink-0"
+              style={{ backgroundColor: THEME.gold, color: THEME.ink }}
+            >
+              <CalendarPlus size={14} />
+              <span>Post Event</span>
+            </button>
+          </div>
+
+          {/* Bottom Row: Byline, Social Links, Author & Admin */}
+          <div className="flex items-center justify-between pt-1 text-[10px]" style={{ borderTop: `1px border-dashed ${THEME.line}`, color: THEME.inkSoft }}>
+            <div className="flex items-center gap-1.5 truncate">
+              <span>By Chathil Malsen</span>
+              <span>•</span>
+              <a href="https://www.linkedin.com/in/chathilmalsen" target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: THEME.goldDeep }}>
+                LinkedIn
+              </a>
+              <span>•</span>
+              <a href="https://instagram.com/chathilmalsen" target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: THEME.goldDeep }}>
+                Instagram
+              </a>
+            </div>
+
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <button
+                onClick={() => setShowUserModal(true)}
+                className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border"
+                style={{ backgroundColor: THEME.card, borderColor: THEME.line, color: THEME.ink }}
+              >
+                <User size={10} color={THEME.ink} />
+                <span className="max-w-[55px] truncate">{currentUser ? currentUser : "Author ID"}</span>
+              </button>
+
+              {isAdmin ? (
+                <button
+                  onClick={() => setIsAdmin(false)}
+                  className="p-1 rounded-full text-[10px]"
+                  style={{ backgroundColor: "#B0334D14", color: "#B0334D" }}
+                >
+                  <LogOut size={11} />
+                </button>
+              ) : (
+                <button
+                  onClick={() => setShowLogin(true)}
+                  className="p-1 rounded-full border"
+                  style={{ backgroundColor: THEME.card, borderColor: THEME.line, color: THEME.ink }}
+                  title="Admin Login"
+                >
+                  <ShieldCheck size={11} />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
       </header>
 
       {/* Hero Section */}
