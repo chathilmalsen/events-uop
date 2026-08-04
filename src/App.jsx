@@ -815,6 +815,7 @@ export default function App() {
             <div className="min-w-0">
               <p className="text-sm sm:text-base font-semibold truncate leading-tight" style={{ fontFamily: "'Fraunces', serif" }}>
                 University Events
+                THE CAMPUS NOTICE BOARD
               </p>
               <p className="text-[10px] leading-tight truncate mt-0.5" style={{ color: THEME.inkSoft }}>
                 By Chathil Malsen
@@ -824,7 +825,7 @@ export default function App() {
                   LinkedIn
                 </a>
                 <span style={{ color: THEME.inkSoft }}>•</span>
-                <a href="https://instagram.com/chathilmalsen" target="_blank" rel="noopener noreferrer" className="hover:underline font-medium" style={{ color: THEME.gold }}>
+                <a href="https://www.instagram.com/chathilmkt?igsh=MTgwZGdlbnVwMzQzeA%3D%3D&utm_source=qr" target="_blank" rel="noopener noreferrer" className="hover:underline font-medium" style={{ color: THEME.gold }}>
                   Instagram
                 </a>
               </div>
