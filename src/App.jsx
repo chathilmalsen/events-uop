@@ -72,12 +72,12 @@ const categoryOf = (id) => CATEGORIES.find((c) => c.id === id) || null;
 const LIGHT_THEME = {
   cream: "#FAF6EC", card: "#FFFDF8", ink: "#1B2740", inkSoft: "#5B6472",
   gold: "#C9A227", goldDeep: "#A9820F", line: "#E6DFCD", danger: "#B0334D",
-  headerBg: "#111726", headerText: "#FFFFFF", headerSoft: "#9AA3B8"
+  headerBg: "#060A12", headerText: "#FFFFFF", headerSoft: "#94A3B8"
 };
 const DARK_THEME = {
   cream: "#10141C", card: "#171C28", ink: "#EEF0F6", inkSoft: "#9AA3B8",
   gold: "#E8C158", goldDeep: "#F0CE72", line: "#2A3040", danger: "#E5657F",
-  headerBg: "#0B0E17", headerText: "#FFFFFF", headerSoft: "#9AA3B8"
+  headerBg: "#05080E", headerText: "#FFFFFF", headerSoft: "#9AA3B8"
 };
 let THEME = LIGHT_THEME;
 
@@ -1223,57 +1223,103 @@ function CalendarView({ events, month, setMonth, year, setYear, onOpen }) {
   );
 }
 
-// Shiny live animated light-beam & metallic shine header background
+// Live Volumetric Cyan Laser & Beam Header Background
 function HeaderGlow() {
-  const beams = [
-    { top: "-10%", width: "150%", left: "-25%", delay: "0s", duration: "12s", thickness: 2.5, opacity: 0.6 },
-    { top: "20%", width: "170%", left: "-40%", delay: "-3s", duration: "16s", thickness: 2, opacity: 0.4 },
-    { top: "50%", width: "160%", left: "-30%", delay: "-7s", duration: "14s", thickness: 3, opacity: 0.5 },
-    { top: "80%", width: "180%", left: "-45%", delay: "-2s", duration: "18s", thickness: 2, opacity: 0.35 },
+  const laserBeams = [
+    { angle: 18,  top: "-10%", left: "-10%", width: "160%", coreThickness: 4, coneWidth: 70, opacity: 0.95, duration: "7s", delay: "0s" },
+    { angle: 26,  top: "-15%", left: "-15%", width: "180%", coreThickness: 6, coneWidth: 95, opacity: 1.0,  duration: "9s", delay: "-2.5s" },
+    { angle: 34,  top: "-20%", left: "-20%", width: "170%", coreThickness: 3, coneWidth: 60, opacity: 0.85, duration: "8s", delay: "-5s" },
   ];
 
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-      {/* Radiant radial background glow */}
+      {/* Dark Ambient Background Gradient */}
       <div
         style={{
           position: "absolute", inset: 0,
-          background: `radial-gradient(ellipse at 20% -10%, ${THEME.gold}33 0%, transparent 70%)`,
+          background: "radial-gradient(circle at -10% -10%, #003b5c 0%, #050b14 65%, #020408 100%)",
         }}
       />
 
-      {/* Dynamic Animated Beams */}
-      {beams.map((b, i) => (
-        <span
+      {/* Atmospheric Volumetric Fog / Cyan Bloom Point Origin */}
+      <div
+        style={{
+          position: "absolute",
+          top: "-50px", left: "-50px",
+          width: "350px", height: "350px",
+          borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(0, 212, 255, 0.45) 0%, rgba(0, 119, 255, 0.25) 40%, transparent 75%)",
+          filter: "blur(35px)",
+          animation: "cyanPointPulse 5s ease-in-out infinite alternate",
+        }}
+      />
+
+      {/* Volumetric Cyan Laser Beams */}
+      {laserBeams.map((b, i) => (
+        <div
           key={i}
-          className="header-beam"
           style={{
             position: "absolute",
             top: b.top,
             left: b.left,
             width: b.width,
-            height: b.thickness,
-            background: `linear-gradient(90deg, transparent 0%, ${THEME.gold}00 10%, ${THEME.gold}ff 50%, ${THEME.goldDeep}ff 60%, transparent 100%)`,
-            transform: "rotate(-5deg)",
-            filter: "blur(1px)",
-            opacity: b.opacity,
-            animation: `beamDrift ${b.duration} ease-in-out ${b.delay} infinite`,
-            boxShadow: `0 0 12px ${THEME.gold}88`,
+            transformOrigin: "0% 0%",
+            transform: `rotate(${b.angle}deg)`,
+            animation: `laserSweep ${b.duration} ease-in-out ${b.delay} infinite alternate`,
           }}
-        />
+        >
+          {/* Broad Atmospheric Light Cone */}
+          <div
+            style={{
+              position: "absolute",
+              top: `-${b.coneWidth / 2}px`,
+              left: 0,
+              width: "100%",
+              height: `${b.coneWidth}px`,
+              background: "linear-gradient(90deg, rgba(0,212,255,0.7) 0%, rgba(0,183,255,0.25) 25%, rgba(0,102,255,0.08) 65%, transparent 100%)",
+              filter: "blur(18px)",
+              opacity: b.opacity * 0.75,
+              clipPath: "polygon(0% 48%, 100% 0%, 100% 100%, 0% 52%)",
+            }}
+          />
+
+          {/* Diffuse Inner Glow Layer */}
+          <div
+            style={{
+              position: "absolute",
+              top: "-12px",
+              left: 0,
+              width: "100%",
+              height: "24px",
+              background: "linear-gradient(90deg, #ffffff 0%, rgba(0,229,255,0.95) 15%, rgba(0,140,255,0.6) 45%, transparent 100%)",
+              filter: "blur(8px)",
+              opacity: b.opacity,
+            }}
+          />
+
+          {/* Sharp Intense Core Laser Line */}
+          <div
+            style={{
+              position: "absolute",
+              top: `-${b.coreThickness / 2}px`,
+              left: 0,
+              width: "100%",
+              height: `${b.coreThickness}px`,
+              background: "linear-gradient(90deg, #ffffff 0%, #e0f7fc 12%, rgba(0,229,255,0.95) 40%, rgba(0,153,255,0.2) 85%, transparent 100%)",
+              boxShadow: "0 0 10px #00e5ff, 0 0 20px #00a2ff, 0 0 35px rgba(0, 212, 255, 0.8)",
+              filter: "drop-shadow(0 0 6px #ffffff)",
+            }}
+          />
+        </div>
       ))}
 
-      {/* Shiny Moving Metallic Overlay Pass */}
+      {/* Atmospheric Smoke Particle Flow Layer */}
       <div
-        className="shiny-sweep"
+        className="cyan-volumetric-haze"
         style={{
-          position: "absolute",
-          top: 0,
-          bottom: 0,
-          width: "40%",
-          background: `linear-gradient(90deg, transparent, ${THEME.gold}1a, rgba(255,255,255,0.12), ${THEME.gold}1a, transparent)`,
-          transform: "skewX(-25deg)",
-          animation: "shineSweep 8s ease-in-out infinite",
+          position: "absolute", inset: 0,
+          background: "radial-gradient(ellipse at 15% 0%, rgba(0, 229, 255, 0.15) 0%, transparent 60%)",
+          animation: "hazeFlow 10s ease-in-out infinite alternate",
         }}
       />
     </div>
@@ -1575,32 +1621,34 @@ export default function App() {
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes riseIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes beamDrift {
-          0%   { transform: translateX(-10%) rotate(-5deg); opacity: 0.1; }
-          20%  { opacity: 0.7; }
-          50%  { transform: translateX(10%) rotate(-5deg); }
-          80%  { opacity: 0.7; }
-          100% { transform: translateX(-10%) rotate(-5deg); opacity: 0.1; }
+        
+        @keyframes laserSweep {
+          0%   { transform: rotate(18deg) scaleY(0.9); }
+          50%  { transform: rotate(25deg) scaleY(1.1); }
+          100% { transform: rotate(32deg) scaleY(0.95); }
         }
-        @keyframes shineSweep {
-          0%   { left: -50%; opacity: 0; }
-          30%  { opacity: 0.8; }
-          60%  { left: 120%; opacity: 0.8; }
-          100% { left: 120%; opacity: 0; }
+        @keyframes cyanPointPulse {
+          0%   { transform: scale(0.9); opacity: 0.8; }
+          100% { transform: scale(1.2); opacity: 1; }
         }
+        @keyframes hazeFlow {
+          0%   { opacity: 0.3; transform: scale(1); }
+          100% { opacity: 0.7; transform: scale(1.15); }
+        }
+
         @media (prefers-reduced-motion: reduce) {
-          .header-beam, .shiny-sweep { animation: none !important; opacity: 0.25 !important; }
+          .cyan-volumetric-haze { animation: none !important; opacity: 0.5 !important; }
         }
         select, input, textarea, button { font-family: 'Inter', sans-serif; }
       `}</style>
 
-      {/* Header with High-Contrast Text & Shiny Effect */}
+      {/* Header with High-Contrast Text & Volumetric Cyan Laser Effect */}
       <header
         className="sticky top-0 z-40 backdrop-blur relative overflow-hidden transition-colors"
         style={{
           backgroundColor: THEME.headerBg,
           borderBottom: `1px solid ${THEME.line}`,
-          boxShadow: "0 4px 20px rgba(0,0,0,0.25)"
+          boxShadow: "0 4px 25px rgba(0,0,0,0.4)"
         }}
       >
         <HeaderGlow />
@@ -1618,18 +1666,18 @@ export default function App() {
                 <h1 className="text-xl font-bold truncate leading-snug tracking-tight" style={{ fontFamily: "'Fraunces', serif", color: THEME.headerText }}>
                   Campus Connect
                 </h1>
-                <span className="inline-block text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-md border" style={{ backgroundColor: "rgba(201,162,39,0.15)", borderColor: THEME.gold, color: THEME.gold, fontFamily: "'IBM Plex Mono', monospace" }}>
+                <span className="inline-block text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-md border" style={{ backgroundColor: "rgba(0, 212, 255, 0.15)", borderColor: "#00d4ff", color: "#00d4ff", fontFamily: "'IBM Plex Mono', monospace" }}>
                   THE CAMPUS NOTICE BOARD
                 </span>
               </div>
               <div className="flex items-center gap-2 text-xs leading-tight mt-0.5" style={{ color: THEME.headerSoft }}>
                 <span>By Chathil Malsen</span>
                 <span>•</span>
-                <a href="https://www.linkedin.com/in/chathilmalsen" target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: THEME.gold }}>
+                <a href="https://www.linkedin.com/in/chathilmalsen" target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: "#38bdf8" }}>
                   LinkedIn
                 </a>
                 <span>•</span>
-                <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: THEME.gold }}>
+                <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: "#38bdf8" }}>
                   Instagram
                 </a>
               </div>
@@ -1671,7 +1719,7 @@ export default function App() {
             <button
               onClick={() => setShowAdd(true)}
               className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-transform active:scale-95 shadow-md hover:shadow-lg"
-              style={{ backgroundColor: THEME.gold, color: "#111726" }}
+              style={{ backgroundColor: "#00e5ff", color: "#05080e" }}
             >
               <CalendarPlus size={16} />
               <span>Post Event</span>
@@ -1692,7 +1740,7 @@ export default function App() {
                 <h1 className="text-base font-bold truncate leading-snug" style={{ fontFamily: "'Fraunces', serif", color: THEME.headerText }}>
                   Campus Connect
                 </h1>
-                <span className="inline-block text-[8px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded border" style={{ backgroundColor: "rgba(201,162,39,0.15)", borderColor: THEME.gold, color: THEME.gold, fontFamily: "'IBM Plex Mono', monospace", width: "fit-content" }}>
+                <span className="inline-block text-[8px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded border" style={{ backgroundColor: "rgba(0, 212, 255, 0.15)", borderColor: "#00d4ff", color: "#00d4ff", fontFamily: "'IBM Plex Mono', monospace", width: "fit-content" }}>
                   THE CAMPUS NOTICE BOARD
                 </span>
               </div>
@@ -1701,7 +1749,7 @@ export default function App() {
             <button
               onClick={() => setShowAdd(true)}
               className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold transition-transform active:scale-95 shadow-sm flex-shrink-0"
-              style={{ backgroundColor: THEME.gold, color: "#111726" }}
+              style={{ backgroundColor: "#00e5ff", color: "#05080e" }}
             >
               <CalendarPlus size={14} />
               <span>Post Event</span>
@@ -1712,11 +1760,11 @@ export default function App() {
             <div className="flex items-center gap-1.5 truncate">
               <span>By Chathil Malsen</span>
               <span>•</span>
-              <a href="https://www.linkedin.com/in/chathilmalsen" target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: THEME.gold }}>
+              <a href="https://www.linkedin.com/in/chathilmalsen" target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: "#38bdf8" }}>
                 LinkedIn
               </a>
               <span>•</span>
-              <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: THEME.gold }}>
+              <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: "#38bdf8" }}>
                 Instagram
               </a>
             </div>
