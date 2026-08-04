@@ -647,16 +647,43 @@ export default function App() {
       <header className="sticky top-0 z-40 backdrop-blur" style={{ backgroundColor: THEME.cream + "E8", borderBottom: `1px solid ${THEME.line}` }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div
-              className="w-9 h-9 rounded-full flex items-center justify-center"
-              style={{ background: `linear-gradient(135deg, ${THEME.ink}, #34486E)`, color: THEME.gold, fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 15 }}
-            >
-              UE
-            </div>
-            <div>
-              <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, fontSize: 17, color: THEME.ink, lineHeight: 1 }}>University Events</p>
-              <p style={{ fontSize: 10.5, color: THEME.inkSoft, letterSpacing: "0.04em", textTransform: "uppercase" }}>The campus notice board</p>
-            </div>
+            <div className="flex items-center gap-2.5">
+  {/* Replaces the UE circle with your logo */}
+  <img 
+    src="/uop-logo.png" 
+    alt="University Logo" 
+    className="w-9 h-9 object-contain" 
+  />
+  <div>
+    <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 600 }}>University Events</p>
+    <p style={{ fontSize: 10.5, color: THEME.inkSoft, letterSpacing: '0.05em' }}>THE CAMPUS NOTICE BOARD</p>
+    
+    {/* Adds your name and social links directly under the notice board text */}
+    <div className="flex items-center gap-1.5 text-[11px] mt-0.5" style={{ color: THEME.inkSoft }}>
+      <span>By Chathil Malsen</span>
+      <span>•</span>
+      <a 
+        href="https://www.linkedin.com/in/chathilmalsen" 
+        target="_blank" 
+        rel="noopener noreferrer" 
+        className="hover:underline font-medium"
+        style={{ color: THEME.amber }}
+      >
+        LinkedIn
+      </a>
+      <span>•</span>
+      <a 
+        href="https://www.instagram.com/chathilmkt" 
+        target="_blank" 
+        rel="noopener noreferrer" 
+        className="hover:underline font-medium"
+        style={{ color: THEME.amber }}
+      >
+        Instagram
+      </a>
+    </div>
+  </div>
+</div>
           </div>
           <button
             onClick={() => setShowAdd(true)}
