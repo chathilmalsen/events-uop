@@ -76,7 +76,7 @@ function pad2(n) { return String(n).padStart(2, "0"); }
 // ---- Local persistence helpers (browser localStorage — works on any static host) ----
 function loadEvents() {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(events_v2);
     if (raw) return JSON.parse(raw);
   } catch (e) {
     console.warn("Could not read saved events", e);
@@ -688,7 +688,7 @@ export default function App() {
         <div className="flex flex-wrap gap-6 mt-6">
           <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 26, color: THEME.ink, fontWeight: 600 }}>{upcomingCount}</span> <span className="text-sm" style={{ color: THEME.inkSoft }}>upcoming</span></div>
           <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 26, color: THEME.ink, fontWeight: 600 }}>{thisWeekCount}</span> <span className="text-sm" style={{ color: THEME.inkSoft }}>this week</span></div>
-          <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 26, color: THEME.ink, fontWeight: 600 }}>6</span> <span className="text-sm" style={{ color: THEME.inkSoft }}>faculties</span></div>
+          <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 26, color: THEME.ink, fontWeight: 600 }}>9</span> <span className="text-sm" style={{ color: THEME.inkSoft }}>faculties</span></div>
         </div>
       </section>
 
