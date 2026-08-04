@@ -803,7 +803,7 @@ export default function App() {
         select, input, textarea, button { font-family: 'Inter', sans-serif; }
       `}</style>
 
-      {/* Responsive Header */}
+      {/* Header */}
       <header className="sticky top-0 z-40 backdrop-blur" style={{ backgroundColor: THEME.cream + "F0", borderBottom: `1px solid ${THEME.line}` }}>
         <div className="max-w-6xl mx-auto px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
@@ -816,12 +816,16 @@ export default function App() {
               <p className="text-sm sm:text-base font-semibold truncate leading-tight" style={{ fontFamily: "'Fraunces', serif" }}>
                 University Events
               </p>
-              <p className="hidden sm:block text-[10px]" style={{ color: THEME.inkSoft, letterSpacing: '0.04em' }}>THE CAMPUS NOTICE BOARD</p>
-              <div className="flex items-center gap-1 text-[10px] text-ellipsis overflow-hidden whitespace-nowrap" style={{ color: THEME.inkSoft }}>
-                <span className="hidden xs:inline">By Chathil Malsen</span>
-                <span className="hidden xs:inline">•</span>
+              <p className="text-[10px] leading-tight truncate mt-0.5" style={{ color: THEME.inkSoft }}>
+                By Chathil Malsen
+              </p>
+              <div className="flex items-center gap-1.5 text-[10px] leading-tight mt-0.5">
                 <a href="https://www.linkedin.com/in/chathilmalsen" target="_blank" rel="noopener noreferrer" className="hover:underline font-medium" style={{ color: THEME.gold }}>
                   LinkedIn
+                </a>
+                <span style={{ color: THEME.inkSoft }}>•</span>
+                <a href="https://instagram.com/chathilmalsen" target="_blank" rel="noopener noreferrer" className="hover:underline font-medium" style={{ color: THEME.gold }}>
+                  Instagram
                 </a>
               </div>
             </div>
@@ -879,7 +883,7 @@ export default function App() {
           What's happening across campus, all in one place.
         </h1>
         <p className="mt-2.5 max-w-xl text-xs sm:text-sm" style={{ color: THEME.inkSoft, lineHeight: 1.5 }}>
-          Every faculty posts here — talks, camps, festivals, and finals.
+          Every faculty posts here — talks, camps, festivals, and finals. Browse by day or month, and add your own event with a poster in a minute.
         </p>
         <div className="flex flex-wrap gap-5 mt-4">
           <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, color: THEME.ink, fontWeight: 600 }}>{upcomingCount}</span> <span className="text-xs" style={{ color: THEME.inkSoft }}>upcoming</span></div>
@@ -888,9 +892,8 @@ export default function App() {
         </div>
       </section>
 
-      {/* Filter Controls (Responsive Scroll & Stack) */}
+      {/* Filter Controls */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-4">
-        {/* Horizontal Scrollable Faculty Pills */}
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-2 mb-3 -mx-4 px-4 sm:mx-0 sm:px-0">
           <button
             onClick={() => setFacultyFilter("all")}
@@ -915,7 +918,6 @@ export default function App() {
           ))}
         </div>
 
-        {/* Stacked Search Bar & Controls for Mobile */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           <div className="relative flex-1">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" color={THEME.inkSoft} />
