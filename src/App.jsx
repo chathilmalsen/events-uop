@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+Import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Calendar, List as ListIcon, Search, Plus, X, MapPin, Clock,
   MessageCircle, ChevronLeft, ChevronRight, Trash2, Upload,
@@ -9,12 +9,10 @@ import {
 } from "lucide-react";
 
 // --- FIREBASE IMPORTS ---
-import { db, auth, storage } from "./firebase";
-// NOTE: `storage` must be exported from ./firebase.js, e.g.:
-//   import { getStorage } from "firebase/storage";
-//   export const storage = getStorage(app);
-// If `storage` is undefined, poster uploads automatically fall back to
-// compressed base64 (works, but heavier on Firestore document size).
+import { db, auth } from "./firebase";
+// Posters are compressed client-side and stored as base64 directly in the
+// event document (Firebase Storage isn't used in this build — see the
+// compressImage()/handlePosterFile() code below).
 import {
   collection,
   addDoc,
@@ -29,11 +27,6 @@ import {
   increment,
   runTransaction
 } from "firebase/firestore";
-import {
-  ref as storageRef,
-  uploadBytes,
-  getDownloadURL
-} from "firebase/storage";
 import {
   signInWithEmailAndPassword,
   signOut,
@@ -772,20 +765,11 @@ function AddOrEditEventModal({ onClose, onSubmit, initialData, currentUser }) {
     setUploading(true);
     setError("");
     try {
+      // Resize + re-encode the image client-side, then store it as base64
+      // directly on the event document (no Firebase Storage in this build).
       const compressed = await compressImage(file);
-      if (storage) {
-        // Upload the compressed image to Firebase Storage and store just the URL —
-        // keeps event documents small and avoids Firestore's 1MB doc limit.
-        const path = `posters/${Date.now()}-${uid()}.jpg`;
-        const sRef = storageRef(storage, path);
-        await uploadBytes(sRef, compressed, { contentType: "image/jpeg" });
-        const url = await getDownloadURL(sRef);
-        setForm((f) => ({ ...f, posterUrl: url }));
-      } else {
-        // Fallback if Storage isn't configured yet: compressed base64 inline.
-        const dataUrl = await fileToDataUrl(compressed);
-        setForm((f) => ({ ...f, posterUrl: dataUrl }));
-      }
+      const dataUrl = await fileToDataUrl(compressed);
+      setForm((f) => ({ ...f, posterUrl: dataUrl }));
     } catch (err) {
       setError("Error processing image file. Please try a different image.");
     }
