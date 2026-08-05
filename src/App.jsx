@@ -9,7 +9,12 @@ import {
 } from "lucide-react";
 
 // --- FIREBASE IMPORTS ---
-import { db, auth } from "./firebase";
+import { db, auth, storage } from "./firebase";
+// NOTE: `storage` must be exported from ./firebase.js, e.g.:
+//   import { getStorage } from "firebase/storage";
+//   export const storage = getStorage(app);
+// If `storage` is undefined, poster uploads automatically fall back to
+// compressed base64 (works, but heavier on Firestore document size).
 import {
   collection,
   addDoc,
@@ -21,8 +26,14 @@ import {
   updateDoc,
   arrayUnion,
   arrayRemove,
-  increment
+  increment,
+  runTransaction
 } from "firebase/firestore";
+import {
+  ref as storageRef,
+  uploadBytes,
+  getDownloadURL
+} from "firebase/storage";
 import {
   signInWithEmailAndPassword,
   signOut,
@@ -132,10 +143,38 @@ function monthMatrix(year, month) {
 function pad2(n) { return String(n).padStart(2, "0"); }
 function sameYMD(a, b) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
 
-function fileToDataUrl(file) {
+function fileToDataUrl(fileOrBlob) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(fileOrBlob);
+  });
+}
+
+// Resizes + re-encodes an image client-side before it ever leaves the
+// browser, so a 6000x4000 phone photo doesn't turn into a multi-MB upload.
+function compressImage(file, maxWidth = 1400, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = () => {
+      img.onload = () => {
+        const scale = Math.min(1, maxWidth / img.width);
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(
+          (blob) => (blob ? resolve(blob) : reject(new Error("Compression failed"))),
+          "image/jpeg",
+          quality
+        );
+      };
+      img.onerror = () => reject(new Error("Could not read image"));
+      img.src = reader.result;
+    };
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
@@ -206,6 +245,11 @@ function shareUrlFor(ev) {
   const url = new URL(window.location.href);
   url.searchParams.set("event", ev.id);
   return url.toString();
+}
+
+function isLikelyUrl(str) {
+  if (!str) return true; // empty is allowed, it's optional
+  return /^https?:\/\/.+/i.test(str.trim());
 }
 
 function FacultySeal({ faculty, size = "md" }) {
@@ -318,7 +362,7 @@ function ShareMenu({ ev, onClose }) {
       </button>
       <div className="flex items-center gap-2 pt-2" style={{ borderTop: `1px solid ${THEME.line}` }}>
         <img
-          alt="QR code"
+          alt="QR code linking to this event"
           className="rounded-md"
           style={{ border: `1px solid ${THEME.line}` }}
           width={64} height={64}
@@ -350,9 +394,10 @@ function EventCard({ ev, onOpen, isBookmarked, onToggleBookmark, isLiked, onTogg
         <div className="flex flex-row gap-3 sm:gap-4 p-3.5 sm:p-4 items-start sm:items-center">
           {ev.posterUrl ? (
             <img
-              src={ev.posterUrl} alt=""
+              src={ev.posterUrl} alt={`Poster for ${ev.title}`}
               className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover flex-shrink-0"
               style={{ border: `1px solid ${THEME.line}` }}
+              loading="lazy"
               onError={(e) => { e.target.style.display = "none"; }}
             />
           ) : (
@@ -398,6 +443,7 @@ function EventCard({ ev, onOpen, isBookmarked, onToggleBookmark, isLiked, onTogg
       <div className="flex items-center gap-1 px-3.5 sm:px-4 pb-3 pt-0.5 relative">
         <button
           onClick={(e) => { e.stopPropagation(); onToggleLike(ev); }}
+          aria-label={isLiked ? "Unlike this event" : "Like this event"}
           className="flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold"
           style={{ color: isLiked ? THEME.danger : THEME.inkSoft, backgroundColor: isLiked ? THEME.danger + "14" : "transparent" }}
         >
@@ -405,6 +451,7 @@ function EventCard({ ev, onOpen, isBookmarked, onToggleBookmark, isLiked, onTogg
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); onToggleBookmark(ev.id); }}
+          aria-label={isBookmarked ? "Remove from saved events" : "Save event"}
           className="flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold"
           style={{ color: isBookmarked ? THEME.goldDeep : THEME.inkSoft, backgroundColor: isBookmarked ? THEME.gold + "22" : "transparent" }}
         >
@@ -412,6 +459,7 @@ function EventCard({ ev, onOpen, isBookmarked, onToggleBookmark, isLiked, onTogg
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); setShareOpen((v) => !v); }}
+          aria-label="Share event"
           className="flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold"
           style={{ color: THEME.inkSoft }}
         >
@@ -445,6 +493,7 @@ function Segmented({ options, value, onChange }) {
         <button
           key={opt.value}
           onClick={() => onChange(opt.value)}
+          aria-pressed={value === opt.value}
           className="flex-1 sm:flex-initial px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-colors text-center flex items-center justify-center gap-1"
           style={{
             backgroundColor: value === opt.value ? THEME.ink : "transparent",
@@ -458,7 +507,53 @@ function Segmented({ options, value, onChange }) {
   );
 }
 
+// Accessible modal: closes on Escape, traps Tab focus inside itself, and
+// restores focus to whatever triggered it on close.
 function Modal({ onClose, children, wide }) {
+  const modalRef = useRef(null);
+  const previouslyFocused = useRef(null);
+
+  useEffect(() => {
+    previouslyFocused.current = document.activeElement;
+
+    const focusableSelector = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+    const focusFirst = () => {
+      if (!modalRef.current) return;
+      const focusable = modalRef.current.querySelector(focusableSelector);
+      if (focusable) focusable.focus();
+    };
+    const raf = requestAnimationFrame(focusFirst);
+
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (e.key === "Tab" && modalRef.current) {
+        const focusables = Array.from(modalRef.current.querySelectorAll(focusableSelector));
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      document.removeEventListener("keydown", handleKeyDown);
+      if (previouslyFocused.current && previouslyFocused.current.focus) {
+        previouslyFocused.current.focus();
+      }
+    };
+  }, [onClose]);
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6 overflow-y-auto"
@@ -466,6 +561,9 @@ function Modal({ onClose, children, wide }) {
       onClick={onClose}
     >
       <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
         onClick={(e) => e.stopPropagation()}
         className={`w-full ${wide ? "max-w-2xl" : "max-w-lg"} rounded-t-3xl sm:rounded-3xl overflow-hidden max-h-[90vh] flex flex-col`}
         style={{ backgroundColor: THEME.card, animation: "riseIn 0.18s ease-out", boxShadow: "0 20px 60px rgba(0,0,0,0.45)" }}
@@ -513,7 +611,7 @@ function SetUserModal({ onClose, onSave, currentName }) {
           <h2 style={{ fontFamily: "'Fraunces', serif", color: THEME.ink, fontSize: 20, fontWeight: 600 }} className="flex items-center gap-2">
             <User size={20} color={THEME.gold} /> Set Author Name
           </h2>
-          <button type="button" onClick={onClose} className="p-1.5 rounded-full hover:bg-black/5">
+          <button type="button" onClick={onClose} aria-label="Close" className="p-1.5 rounded-full hover:bg-black/5">
             <X size={18} color={THEME.inkSoft} />
           </button>
         </div>
@@ -573,7 +671,7 @@ function LoginModal({ onClose, onLoginSuccess }) {
           <h2 style={{ fontFamily: "'Fraunces', serif", color: THEME.ink, fontSize: 20, fontWeight: 600 }} className="flex items-center gap-2">
             <ShieldCheck size={20} color={THEME.gold} /> Admin Sign In
           </h2>
-          <button type="button" onClick={onClose} className="p-1.5 rounded-full hover:bg-black/5">
+          <button type="button" onClick={onClose} aria-label="Close" className="p-1.5 rounded-full hover:bg-black/5">
             <X size={18} color={THEME.inkSoft} />
           </button>
         </div>
@@ -619,31 +717,38 @@ function LoginModal({ onClose, onLoginSuccess }) {
 
 function AddOrEditEventModal({ onClose, onSubmit, initialData, currentUser }) {
   const inputStyle = inputStyleFn();
-  const [form, setForm] = useState(
-    initialData || {
-      title: "",
-      faculty: "",
-      category: "",
-      date: "",
-      startTime: "",
-      endTime: "",
-      location: "",
-      organizer: "",
-      contact: "",
-      postedBy: currentUser || "",
-      posterUrl: "",
-      description: "",
-      tags: [],
-      registrationLink: "",
-      priceType: "free",
-      mode: "offline",
-    }
-  );
+  const initialForm = initialData || {
+    title: "",
+    faculty: "",
+    category: "",
+    date: "",
+    startTime: "",
+    endTime: "",
+    location: "",
+    organizer: "",
+    contact: "",
+    postedBy: currentUser || "",
+    posterUrl: "",
+    description: "",
+    tags: [],
+    registrationLink: "",
+    priceType: "free",
+    mode: "offline",
+  };
+  const [form, setForm] = useState(initialForm);
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
+  const initialSnapshotRef = useRef(JSON.stringify(initialForm));
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const isDirty = () => JSON.stringify(form) !== initialSnapshotRef.current;
+
+  const requestClose = () => {
+    if (isDirty() && !window.confirm("Discard unsaved changes to this event?")) return;
+    onClose();
+  };
 
   const TAG_OPTIONS = ["Free food", "Certificates", "Open to all faculties", "Registration required"];
   const toggleTag = (tag) => {
@@ -660,17 +765,29 @@ function AddOrEditEventModal({ onClose, onSubmit, initialData, currentUser }) {
       setError("Please choose an image file.");
       return;
     }
-    if (file.size > 1 * 1024 * 1024) {
-      setError("Poster image must be under 1MB.");
+    if (file.size > 8 * 1024 * 1024) {
+      setError("Poster image must be under 8MB.");
       return;
     }
     setUploading(true);
     setError("");
     try {
-      const dataUrl = await fileToDataUrl(file);
-      setForm((f) => ({ ...f, posterUrl: dataUrl }));
+      const compressed = await compressImage(file);
+      if (storage) {
+        // Upload the compressed image to Firebase Storage and store just the URL —
+        // keeps event documents small and avoids Firestore's 1MB doc limit.
+        const path = `posters/${Date.now()}-${uid()}.jpg`;
+        const sRef = storageRef(storage, path);
+        await uploadBytes(sRef, compressed, { contentType: "image/jpeg" });
+        const url = await getDownloadURL(sRef);
+        setForm((f) => ({ ...f, posterUrl: url }));
+      } else {
+        // Fallback if Storage isn't configured yet: compressed base64 inline.
+        const dataUrl = await fileToDataUrl(compressed);
+        setForm((f) => ({ ...f, posterUrl: dataUrl }));
+      }
     } catch (err) {
-      setError("Error reading image file.");
+      setError("Error processing image file. Please try a different image.");
     }
     setUploading(false);
   };
@@ -681,17 +798,21 @@ function AddOrEditEventModal({ onClose, onSubmit, initialData, currentUser }) {
       setError("Please fill in all required fields.");
       return;
     }
+    if (!isLikelyUrl(form.registrationLink)) {
+      setError("Registration link should start with http:// or https://");
+      return;
+    }
     onSubmit(form);
   };
 
   return (
-    <Modal onClose={onClose} wide>
+    <Modal onClose={requestClose} wide>
       <form onSubmit={submit} className="flex flex-col h-full overflow-hidden">
         <div className="flex items-center justify-between p-4 sm:p-6 pb-2">
           <h2 style={{ fontFamily: "'Fraunces', serif", color: THEME.ink, fontSize: 20, fontWeight: 600 }}>
             {initialData ? "Edit Event" : "Post Event"}
           </h2>
-          <button type="button" onClick={onClose} className="p-1.5 rounded-full hover:bg-black/5">
+          <button type="button" onClick={requestClose} aria-label="Close" className="p-1.5 rounded-full hover:bg-black/5">
             <X size={18} color={THEME.inkSoft} />
           </button>
         </div>
@@ -771,6 +892,7 @@ function AddOrEditEventModal({ onClose, onSubmit, initialData, currentUser }) {
                     type="button"
                     key={tag}
                     onClick={() => toggleTag(tag)}
+                    aria-pressed={active}
                     className="px-3 py-1.5 rounded-full text-xs font-semibold border"
                     style={{
                       backgroundColor: active ? THEME.ink : "transparent",
@@ -789,7 +911,8 @@ function AddOrEditEventModal({ onClose, onSubmit, initialData, currentUser }) {
               <button
                 type="button"
                 onClick={() => fileInputRef.current && fileInputRef.current.click()}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
+                disabled={uploading}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold disabled:opacity-60"
                 style={{ backgroundColor: THEME.line, color: THEME.ink }}
               >
                 <Upload size={13} /> {uploading ? "Uploading…" : "Choose Image"}
@@ -816,8 +939,8 @@ function AddOrEditEventModal({ onClose, onSubmit, initialData, currentUser }) {
           </Field>
         </div>
         <div className="flex items-center justify-end gap-2 p-4 sm:px-6" style={{ borderTop: `1px solid ${THEME.line}` }}>
-          <button type="button" onClick={onClose} className="px-4 py-2 rounded-full text-sm font-medium" style={{ color: THEME.inkSoft }}>Cancel</button>
-          <button type="submit" className="px-5 py-2 rounded-full text-sm font-semibold" style={{ backgroundColor: THEME.ink, color: THEME.cream }}>
+          <button type="button" onClick={requestClose} className="px-4 py-2 rounded-full text-sm font-medium" style={{ color: THEME.inkSoft }}>Cancel</button>
+          <button type="submit" disabled={uploading} className="px-5 py-2 rounded-full text-sm font-semibold disabled:opacity-60" style={{ backgroundColor: THEME.ink, color: THEME.cream }}>
             {initialData ? "Save Changes" : "Post Event"}
           </button>
         </div>
@@ -872,6 +995,7 @@ function ReminderMenu({ ev, onClose }) {
             <button
               key={o.minutes}
               onClick={() => toggle(o.minutes)}
+              aria-pressed={isOn}
               className="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium"
               style={{ backgroundColor: isOn ? THEME.gold + "22" : "transparent", color: isOn ? THEME.goldDeep : THEME.ink }}
             >
@@ -907,6 +1031,8 @@ function CommentItem({ c, replies, onReply, onReact, anonId }) {
                 <button
                   key={emo}
                   onClick={() => onReact(c.id, emo)}
+                  aria-label={`React with ${emo}`}
+                  aria-pressed={active}
                   className="text-[11px] px-1.5 py-0.5 rounded-full flex items-center gap-0.5"
                   style={{ backgroundColor: active ? THEME.gold + "2a" : "transparent", border: `1px solid ${active ? THEME.goldDeep : THEME.line}` }}
                 >
@@ -992,10 +1118,10 @@ function EventDetailModal({ ev, onClose, onComment, onReact, onDelete, onEdit, i
             <div className="flex items-center gap-1">
               {canModify ? (
                 <>
-                  <button onClick={() => onEdit(ev)} className="p-1.5 rounded-full hover:bg-black/5" title="Edit event">
+                  <button onClick={() => onEdit(ev)} className="p-1.5 rounded-full hover:bg-black/5" aria-label="Edit event" title="Edit event">
                     <Edit size={16} color={THEME.ink} />
                   </button>
-                  <button onClick={() => onDelete(ev.id)} className="p-1.5 rounded-full hover:bg-black/5" title="Remove event">
+                  <button onClick={() => onDelete(ev.id)} className="p-1.5 rounded-full hover:bg-black/5" aria-label="Delete event" title="Remove event">
                     <Trash2 size={16} color={THEME.danger} />
                   </button>
                 </>
@@ -1008,7 +1134,7 @@ function EventDetailModal({ ev, onClose, onComment, onReact, onDelete, onEdit, i
                   <User size={11} /> Edit
                 </button>
               )}
-              <button onClick={onClose} className="p-1.5 rounded-full hover:bg-black/5">
+              <button onClick={onClose} aria-label="Close" className="p-1.5 rounded-full hover:bg-black/5">
                 <X size={18} color={THEME.inkSoft} />
               </button>
             </div>
@@ -1044,6 +1170,7 @@ function EventDetailModal({ ev, onClose, onComment, onReact, onDelete, onEdit, i
           <div className="flex flex-wrap items-center gap-2 mt-4">
             <button
               onClick={() => onToggleLike(ev)}
+              aria-label={isLiked ? "Unlike this event" : "Like this event"}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
               style={{ color: isLiked ? "#fff" : THEME.danger, backgroundColor: isLiked ? THEME.danger : THEME.danger + "14" }}
             >
@@ -1051,6 +1178,7 @@ function EventDetailModal({ ev, onClose, onComment, onReact, onDelete, onEdit, i
             </button>
             <button
               onClick={() => onToggleBookmark(ev.id)}
+              aria-label={isBookmarked ? "Remove from saved events" : "Save event"}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
               style={{ color: isBookmarked ? THEME.ink : THEME.goldDeep, backgroundColor: isBookmarked ? THEME.gold : THEME.gold + "22" }}
             >
@@ -1091,7 +1219,7 @@ function EventDetailModal({ ev, onClose, onComment, onReact, onDelete, onEdit, i
 
         {ev.posterUrl && (
           <div className="w-full bg-black/20 flex items-center justify-center p-2">
-            <img src={ev.posterUrl} alt="" className="w-full max-h-[400px] object-contain rounded-lg" onError={(e) => { e.target.style.display = "none"; }} />
+            <img src={ev.posterUrl} alt={`Poster for ${ev.title}`} className="w-full max-h-[400px] object-contain rounded-lg" onError={(e) => { e.target.style.display = "none"; }} />
           </div>
         )}
 
@@ -1170,8 +1298,8 @@ function CalendarView({ events, month, setMonth, year, setYear, onOpen }) {
           {new Date(year, month, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
         </h3>
         <div className="flex items-center gap-1">
-          <button onClick={() => goMonth(-1)} className="p-1.5 rounded-full hover:bg-black/5"><ChevronLeft size={16} color={THEME.ink} /></button>
-          <button onClick={() => goMonth(1)} className="p-1.5 rounded-full hover:bg-black/5"><ChevronRight size={16} color={THEME.ink} /></button>
+          <button onClick={() => goMonth(-1)} aria-label="Previous month" className="p-1.5 rounded-full hover:bg-black/5"><ChevronLeft size={16} color={THEME.ink} /></button>
+          <button onClick={() => goMonth(1)} aria-label="Next month" className="p-1.5 rounded-full hover:bg-black/5"><ChevronRight size={16} color={THEME.ink} /></button>
         </div>
       </div>
       <div className="grid grid-cols-7 gap-1 mb-1 text-center text-[10px] font-semibold uppercase tracking-wide" style={{ color: THEME.inkSoft }}>
@@ -1188,6 +1316,7 @@ function CalendarView({ events, month, setMonth, year, setYear, onOpen }) {
             <button
               key={i}
               onClick={() => setSelectedDate(dateStr)}
+              aria-label={`${dateStr}${dayEvents.length ? `, ${dayEvents.length} event${dayEvents.length !== 1 ? "s" : ""}` : ""}`}
               className="aspect-square rounded-lg flex flex-col items-center justify-start pt-1 gap-0.5 transition-colors"
               style={{
                 backgroundColor: isSelected ? THEME.ink : isToday ? THEME.gold + "22" : "transparent",
@@ -1383,9 +1512,9 @@ function HeaderGlow() {
 
 function ThemeToggle({ mode, setMode }) {
   const opts = [
-    { m: "light", icon: <Sun size={13} /> },
-    { m: "dark", icon: <Moon size={13} /> },
-    { m: "system", icon: <Monitor size={13} /> },
+    { m: "light", icon: <Sun size={13} />, label: "Light theme" },
+    { m: "dark", icon: <Moon size={13} />, label: "Dark theme" },
+    { m: "system", icon: <Monitor size={13} />, label: "Match system theme" },
   ];
   return (
     <div className="flex items-center gap-0.5 rounded-full p-1" style={{ backgroundColor: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.18)" }}>
@@ -1393,6 +1522,8 @@ function ThemeToggle({ mode, setMode }) {
         <button
           key={o.m}
           onClick={() => setMode(o.m)}
+          aria-label={o.label}
+          aria-pressed={mode === o.m}
           className="p-1.5 rounded-full transition-colors"
           style={{ backgroundColor: mode === o.m ? THEME.gold : "transparent", color: mode === o.m ? "#1B2740" : "#E2E8F0" }}
           title={o.m}
@@ -1400,6 +1531,29 @@ function ThemeToggle({ mode, setMode }) {
           {o.icon}
         </button>
       ))}
+    </div>
+  );
+}
+
+// Small, unobtrusive copyright mark pinned to the bottom-right of the
+// viewport across every view (list, calendar, saved).
+function CopyrightBadge() {
+  return (
+    <div
+      className="fixed bottom-3 right-3 z-30 select-none pointer-events-none"
+      style={{
+        fontSize: 10,
+        fontFamily: "'IBM Plex Mono', monospace",
+        color: THEME.inkSoft,
+        backgroundColor: THEME.card + "d9",
+        padding: "4px 10px",
+        borderRadius: 999,
+        border: `1px solid ${THEME.line}`,
+        backdropFilter: "blur(4px)",
+        WebkitBackdropFilter: "blur(4px)",
+      }}
+    >
+      © {new Date().getFullYear()} Chathil Malsen
     </div>
   );
 }
@@ -1415,6 +1569,7 @@ export default function App() {
   const [priceFilter, setPriceFilter] = useState("any");
   const [modeFilter, setModeFilter] = useState("any");
   const [regOnly, setRegOnly] = useState(false);
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
 
@@ -1432,6 +1587,12 @@ export default function App() {
   const [systemDark, setSystemDark] = useState(
     typeof window !== "undefined" && window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)").matches : false
   );
+
+  // Debounce search so every keystroke doesn't re-filter the whole list.
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput), 250);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
   useEffect(() => {
     if (!window.matchMedia) return;
@@ -1465,9 +1626,9 @@ export default function App() {
 
   const toggleLike = async (ev) => {
     try {
-      const ref = doc(db, "events", ev.id);
+      const eventRef = doc(db, "events", ev.id);
       const liked = (ev.likes || []).includes(anonId);
-      await updateDoc(ref, { likes: liked ? arrayRemove(anonId) : arrayUnion(anonId) });
+      await updateDoc(eventRef, { likes: liked ? arrayRemove(anonId) : arrayUnion(anonId) });
     } catch (error) {
       console.error("Error toggling like:", error);
     }
@@ -1568,19 +1729,25 @@ export default function App() {
     }
   };
 
+  // Runs as a Firestore transaction so two people reacting to the same
+  // comment at nearly the same instant can't silently overwrite each other.
   const reactToComment = async (eventId, commentId, emoji, uidStr) => {
     try {
-      const ev = events.find((e) => e.id === eventId);
-      if (!ev) return;
-      const comments = (ev.comments || []).map((c) => {
-        if (c.id !== commentId) return c;
-        const reactions = { ...(c.reactions || {}) };
-        const list = new Set(reactions[emoji] || []);
-        if (list.has(uidStr)) list.delete(uidStr); else list.add(uidStr);
-        reactions[emoji] = Array.from(list);
-        return { ...c, reactions };
+      const eventRef = doc(db, "events", eventId);
+      await runTransaction(db, async (transaction) => {
+        const snap = await transaction.get(eventRef);
+        if (!snap.exists()) return;
+        const data = snap.data();
+        const comments = (data.comments || []).map((c) => {
+          if (c.id !== commentId) return c;
+          const reactions = { ...(c.reactions || {}) };
+          const list = new Set(reactions[emoji] || []);
+          if (list.has(uidStr)) list.delete(uidStr); else list.add(uidStr);
+          reactions[emoji] = Array.from(list);
+          return { ...c, reactions };
+        });
+        transaction.update(eventRef, { comments });
       });
-      await updateDoc(doc(db, "events", eventId), { comments });
     } catch (error) {
       console.error("Error reacting to comment:", error);
     }
@@ -1664,7 +1831,9 @@ export default function App() {
   const trendingIds = useMemo(() => {
     const scored = events.map((e) => ({ id: e.id, score: (e.views || 0) + (e.likes || []).length * 5 }));
     const sorted = [...scored].sort((a, b) => b.score - a.score);
-    const cutoff = Math.max(3, 1);
+    // Scale the trending shortlist with how many events exist, instead of a
+    // fixed constant that ignores collection size.
+    const cutoff = Math.max(3, Math.floor(events.length * 0.1));
     return new Set(sorted.filter((s) => s.score > 0).slice(0, cutoff).map((s) => s.id));
   }, [events]);
 
@@ -1700,6 +1869,10 @@ export default function App() {
           .cyan-volumetric-haze { animation: none !important; opacity: 0.4 !important; }
         }
         select, input, textarea, button { font-family: 'Inter', sans-serif; }
+        button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+          outline: 2px solid #00b8d4;
+          outline-offset: 2px;
+        }
       `}</style>
 
       {/* Header with High-Contrast Text & Lighter Wide Laser Effect with Sparkles */}
@@ -1718,7 +1891,7 @@ export default function App() {
           <div className="flex items-center gap-3.5 min-w-0">
             <img
               src="/uop-logo.png"
-              alt="Logo"
+              alt="University of Peradeniya logo"
               className="w-11 h-11 object-contain flex-shrink-0 drop-shadow-md"
             />
             <div className="min-w-0">
@@ -1793,7 +1966,7 @@ export default function App() {
             <div className="flex items-center gap-2.5 min-w-0">
               <img
                 src="/uop-logo.png"
-                alt="Logo"
+                alt="University of Peradeniya logo"
                 className="w-9 h-9 object-contain flex-shrink-0"
               />
               <div className="min-w-0 flex flex-col justify-center">
@@ -1843,6 +2016,7 @@ export default function App() {
               {isAdmin ? (
                 <button
                   onClick={handleAdminLogout}
+                  aria-label="Log out of admin"
                   className="p-1 rounded-full text-[10px]"
                   style={{ backgroundColor: "#E5657F26", color: "#FF9DB0" }}
                 >
@@ -1851,6 +2025,7 @@ export default function App() {
               ) : (
                 <button
                   onClick={() => setShowLogin(true)}
+                  aria-label="Admin login"
                   className="p-1 rounded-full border"
                   style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", color: THEME.headerText }}
                   title="Admin Login"
@@ -1887,6 +2062,7 @@ export default function App() {
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-2 mb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
           <button
             onClick={() => setFacultyFilter("all")}
+            aria-pressed={facultyFilter === "all"}
             className="px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap flex-shrink-0"
             style={{ backgroundColor: facultyFilter === "all" ? THEME.ink : THEME.line + "88", color: facultyFilter === "all" ? THEME.cream : THEME.inkSoft }}
           >
@@ -1896,6 +2072,7 @@ export default function App() {
             <button
               key={f.id}
               onClick={() => setFacultyFilter(f.id)}
+              aria-pressed={facultyFilter === f.id}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap flex-shrink-0"
               style={{
                 backgroundColor: facultyFilter === f.id ? f.color : f.color + "14",
@@ -1912,6 +2089,7 @@ export default function App() {
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-2 mb-3 -mx-4 px-4 sm:mx-0 sm:px-0">
           <button
             onClick={() => setCategoryFilter("all")}
+            aria-pressed={categoryFilter === "all"}
             className="px-3 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap flex-shrink-0"
             style={{ backgroundColor: categoryFilter === "all" ? THEME.goldDeep : THEME.line + "88", color: categoryFilter === "all" ? "#fff" : THEME.inkSoft }}
           >
@@ -1921,6 +2099,7 @@ export default function App() {
             <button
               key={c.id}
               onClick={() => setCategoryFilter(c.id)}
+              aria-pressed={categoryFilter === c.id}
               className="flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap flex-shrink-0"
               style={{
                 backgroundColor: categoryFilter === c.id ? c.color : c.color + "14",
@@ -1936,8 +2115,9 @@ export default function App() {
           <div className="relative flex-1">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" color={THEME.inkSoft} />
             <input
-              value={search} onChange={(e) => setSearch(e.target.value)}
+              value={searchInput} onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search events, venues, categories..."
+              aria-label="Search events, venues, categories"
               style={{ ...inputStyleFn(), paddingLeft: 32 }}
             />
           </div>
@@ -1950,19 +2130,20 @@ export default function App() {
             />
             <button
               onClick={() => setShowFilters((v) => !v)}
+              aria-pressed={showFilters}
               className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold"
               style={{ backgroundColor: showFilters ? THEME.ink : THEME.line + "88", color: showFilters ? THEME.cream : THEME.inkSoft }}
             >
               <SlidersHorizontal size={13} /> Filters
             </button>
             <div className="flex items-center gap-1 rounded-full p-1" style={{ backgroundColor: THEME.line + "88" }}>
-              <button onClick={() => setView("list")} className="px-2.5 py-1 rounded-full text-xs font-medium" style={{ backgroundColor: view === "list" ? THEME.ink : "transparent", color: view === "list" ? THEME.cream : THEME.inkSoft }}>
+              <button onClick={() => setView("list")} aria-label="List view" aria-pressed={view === "list"} className="px-2.5 py-1 rounded-full text-xs font-medium" style={{ backgroundColor: view === "list" ? THEME.ink : "transparent", color: view === "list" ? THEME.cream : THEME.inkSoft }}>
                 <ListIcon size={14} />
               </button>
-              <button onClick={() => setView("calendar")} className="px-2.5 py-1 rounded-full text-xs font-medium" style={{ backgroundColor: view === "calendar" ? THEME.ink : "transparent", color: view === "calendar" ? THEME.cream : THEME.inkSoft }}>
+              <button onClick={() => setView("calendar")} aria-label="Calendar view" aria-pressed={view === "calendar"} className="px-2.5 py-1 rounded-full text-xs font-medium" style={{ backgroundColor: view === "calendar" ? THEME.ink : "transparent", color: view === "calendar" ? THEME.cream : THEME.inkSoft }}>
                 <CalendarDays size={14} />
               </button>
-              <button onClick={() => setView("saved")} className="px-2.5 py-1 rounded-full text-xs font-medium flex items-center gap-1" style={{ backgroundColor: view === "saved" ? THEME.ink : "transparent", color: view === "saved" ? THEME.cream : THEME.inkSoft }}>
+              <button onClick={() => setView("saved")} aria-label="Saved events" aria-pressed={view === "saved"} className="px-2.5 py-1 rounded-full text-xs font-medium flex items-center gap-1" style={{ backgroundColor: view === "saved" ? THEME.ink : "transparent", color: view === "saved" ? THEME.cream : THEME.inkSoft }}>
                 <Bookmark size={14} />
               </button>
             </div>
@@ -1975,7 +2156,7 @@ export default function App() {
               <p className="text-[10px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: THEME.inkSoft }}>When</p>
               <div className="flex flex-wrap gap-1.5">
                 {[["any", "Any time"], ["today", "Today"], ["tomorrow", "Tomorrow"], ["week", "This Week"], ["month", "This Month"]].map(([v, l]) => (
-                  <button key={v} onClick={() => setQuickDate(v)} className="px-3 py-1 rounded-full text-[11px] font-semibold" style={{ backgroundColor: quickDate === v ? THEME.ink : THEME.line + "88", color: quickDate === v ? THEME.cream : THEME.inkSoft }}>{l}</button>
+                  <button key={v} onClick={() => setQuickDate(v)} aria-pressed={quickDate === v} className="px-3 py-1 rounded-full text-[11px] font-semibold" style={{ backgroundColor: quickDate === v ? THEME.ink : THEME.line + "88", color: quickDate === v ? THEME.cream : THEME.inkSoft }}>{l}</button>
                 ))}
               </div>
             </div>
@@ -1984,7 +2165,7 @@ export default function App() {
                 <p className="text-[10px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: THEME.inkSoft }}>Price</p>
                 <div className="flex gap-1.5">
                   {[["any", "Any"], ["free", "Free"], ["paid", "Paid"]].map(([v, l]) => (
-                    <button key={v} onClick={() => setPriceFilter(v)} className="px-3 py-1 rounded-full text-[11px] font-semibold" style={{ backgroundColor: priceFilter === v ? THEME.ink : THEME.line + "88", color: priceFilter === v ? THEME.cream : THEME.inkSoft }}>{l}</button>
+                    <button key={v} onClick={() => setPriceFilter(v)} aria-pressed={priceFilter === v} className="px-3 py-1 rounded-full text-[11px] font-semibold" style={{ backgroundColor: priceFilter === v ? THEME.ink : THEME.line + "88", color: priceFilter === v ? THEME.cream : THEME.inkSoft }}>{l}</button>
                   ))}
                 </div>
               </div>
@@ -1992,13 +2173,13 @@ export default function App() {
                 <p className="text-[10px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: THEME.inkSoft }}>Mode</p>
                 <div className="flex gap-1.5">
                   {[["any", "Any"], ["offline", "In person"], ["online", "Online"]].map(([v, l]) => (
-                    <button key={v} onClick={() => setModeFilter(v)} className="px-3 py-1 rounded-full text-[11px] font-semibold" style={{ backgroundColor: modeFilter === v ? THEME.ink : THEME.line + "88", color: modeFilter === v ? THEME.cream : THEME.inkSoft }}>{l}</button>
+                    <button key={v} onClick={() => setModeFilter(v)} aria-pressed={modeFilter === v} className="px-3 py-1 rounded-full text-[11px] font-semibold" style={{ backgroundColor: modeFilter === v ? THEME.ink : THEME.line + "88", color: modeFilter === v ? THEME.cream : THEME.inkSoft }}>{l}</button>
                   ))}
                 </div>
               </div>
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: THEME.inkSoft }}>Registration</p>
-                <button onClick={() => setRegOnly((v) => !v)} className="px-3 py-1 rounded-full text-[11px] font-semibold" style={{ backgroundColor: regOnly ? THEME.ink : THEME.line + "88", color: regOnly ? THEME.cream : THEME.inkSoft }}>
+                <button onClick={() => setRegOnly((v) => !v)} aria-pressed={regOnly} className="px-3 py-1 rounded-full text-[11px] font-semibold" style={{ backgroundColor: regOnly ? THEME.ink : THEME.line + "88", color: regOnly ? THEME.cream : THEME.inkSoft }}>
                   {regOnly ? "Registration open ✓" : "Registration open"}
                 </button>
               </div>
@@ -2055,6 +2236,8 @@ export default function App() {
         <br />
         Created by Chathil Malsen, Mechanical Engineering Undergraduate, University of Peradeniya
       </footer>
+
+      <CopyrightBadge />
 
       {showLogin && <LoginModal onClose={() => setShowLogin(false)} onLoginSuccess={() => setIsAdmin(true)} />}
       {showUserModal && <SetUserModal onClose={() => setShowUserModal(false)} onSave={handleSaveUserName} currentName={currentUser} />}
