@@ -268,6 +268,45 @@ function isLikelyUrl(str) {
   return /^https?:\/\/.+/i.test(str.trim());
 }
 
+// --- Duplicate-event detection helpers -------------------------------------
+// Lightweight, dependency-free "is this probably the same event" check:
+// normalize both titles to a bag of words and compare word overlap
+// (Jaccard similarity), then require the dates to match (when both are
+// set) before calling it a likely duplicate. This deliberately stays
+// conservative — it's meant to catch accidental re-posts and near-identical
+// titles ("AI Workshop" vs "AI Workshop 2.0"), not to block genuinely
+// different events that happen to share a date.
+function normalizeTitleForCompare(s) {
+  return (s || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+function titleSimilarity(a, b) {
+  const wordsA = new Set(normalizeTitleForCompare(a).split(" ").filter(Boolean));
+  const wordsB = new Set(normalizeTitleForCompare(b).split(" ").filter(Boolean));
+  if (wordsA.size === 0 || wordsB.size === 0) return 0;
+  let shared = 0;
+  wordsA.forEach((w) => { if (wordsB.has(w)) shared += 1; });
+  const union = new Set([...wordsA, ...wordsB]).size;
+  return union === 0 ? 0 : shared / union;
+}
+function findLikelyDuplicates(form, events, excludeId) {
+  const title = (form.title || "").trim();
+  if (title.length < 3) return [];
+  const normTitle = normalizeTitleForCompare(title);
+  return (events || []).filter((e) => {
+    if (!e || !e.title) return false;
+    if (excludeId && e.id === excludeId) return false;
+    // If both events have a date set, require them to match — different
+    // dates almost always mean a different occurrence, not a duplicate.
+    if (form.date && e.date && form.date !== e.date) return false;
+    const sim = titleSimilarity(title, e.title);
+    return normalizeTitleForCompare(e.title) === normTitle || sim >= 0.55;
+  });
+}
+
 function FacultySeal({ faculty, size = "md" }) {
   const f = facultyOf(faculty);
   const dims = size === "sm" ? 28 : size === "lg" ? 56 : 38;
@@ -747,7 +786,7 @@ function LoginModal({ onClose, onLoginSuccess }) {
   );
 }
 
-function AddOrEditEventModal({ onClose, onSubmit, initialData, currentUser }) {
+function AddOrEditEventModal({ onClose, onSubmit, initialData, currentUser, events }) {
   const inputStyle = inputStyleFn();
   const initialForm = initialData || {
     title: "",
@@ -773,7 +812,22 @@ function AddOrEditEventModal({ onClose, onSubmit, initialData, currentUser }) {
   const fileInputRef = useRef(null);
   const initialSnapshotRef = useRef(JSON.stringify(initialForm));
 
-  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  // --- Duplicate-event detection state ---
+  // `duplicates` holds any existing events that look like the same event as
+  // what's currently in the form. Submitting shows the warning instead of
+  // saving; the user can then edit the details or explicitly acknowledge
+  // and post anyway. Editing the title/date after acknowledging resets the
+  // acknowledgement so a real change is re-checked.
+  const [duplicates, setDuplicates] = useState([]);
+  const [dupAcknowledged, setDupAcknowledged] = useState(false);
+
+  const set = (k) => (e) => {
+    const value = e.target.value;
+    setForm((f) => ({ ...f, [k]: value }));
+    if ((k === "title" || k === "date") && dupAcknowledged) {
+      setDupAcknowledged(false);
+    }
+  };
 
   const isDirty = () => JSON.stringify(form) !== initialSnapshotRef.current;
 
@@ -825,6 +879,21 @@ function AddOrEditEventModal({ onClose, onSubmit, initialData, currentUser }) {
       return;
     }
     setError("");
+
+    if (!dupAcknowledged) {
+      const found = findLikelyDuplicates(form, events, initialData?.id);
+      if (found.length > 0) {
+        setDuplicates(found);
+        return;
+      }
+    }
+    setDuplicates([]);
+    onSubmit(form);
+  };
+
+  const postAnyway = () => {
+    setDupAcknowledged(true);
+    setDuplicates([]);
     onSubmit(form);
   };
 
@@ -843,6 +912,47 @@ function AddOrEditEventModal({ onClose, onSubmit, initialData, currentUser }) {
           {error && (
             <div className="flex items-center gap-2 text-xs mb-3 px-3 py-2 rounded-lg" style={{ backgroundColor: THEME.danger + "14", color: THEME.danger }}>
               <AlertCircle size={14} /> {error}
+            </div>
+          )}
+          {duplicates.length > 0 && (
+            <div
+              className="mb-3 px-3 py-3 rounded-xl"
+              style={{ backgroundColor: THEME.goldDeep + "16", border: `1px solid ${THEME.goldDeep}55` }}
+            >
+              <p className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: THEME.goldDeep }}>
+                <AlertCircle size={14} /> This looks similar to {duplicates.length === 1 ? "an event" : "events"} already posted
+              </p>
+              <div className="mt-2 space-y-1.5">
+                {duplicates.slice(0, 3).map((d) => (
+                  <div key={d.id} className="text-xs flex items-center gap-1.5 flex-wrap" style={{ color: THEME.ink }}>
+                    <span className="font-semibold">{d.title}</span>
+                    <span style={{ color: THEME.inkSoft }}>
+                      {d.date ? formatDateLabel(d.date) : "no date"}{d.startTime ? ` · ${formatTime(d.startTime)}` : ""}{d.location ? ` · ${d.location}` : ""}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[11px] mt-2" style={{ color: THEME.inkSoft }}>
+                If this is a genuinely different event, you can post it anyway. Otherwise, consider editing the existing post instead.
+              </p>
+              <div className="flex gap-2 mt-2.5">
+                <button
+                  type="button"
+                  onClick={postAnyway}
+                  className="px-3 py-1.5 rounded-full text-[11px] font-semibold"
+                  style={{ backgroundColor: THEME.ink, color: THEME.cream }}
+                >
+                  It's different — post anyway
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDuplicates([])}
+                  className="px-3 py-1.5 rounded-full text-[11px] font-semibold"
+                  style={{ color: THEME.inkSoft, border: `1px solid ${THEME.line}` }}
+                >
+                  Let me edit it
+                </button>
+              </div>
             </div>
           )}
           <p className="text-xs mb-3 flex items-center gap-1.5" style={{ color: THEME.inkSoft }}>
@@ -2877,8 +2987,8 @@ export default function App() {
 
       {showLogin && <LoginModal onClose={() => setShowLogin(false)} onLoginSuccess={() => setIsAdmin(true)} />}
       {showUserModal && <SetUserModal onClose={() => setShowUserModal(false)} onSave={handleSaveUserName} currentName={currentUser} />}
-      {showAdd && <AddOrEditEventModal onClose={() => setShowAdd(false)} onSubmit={addEvent} currentUser={currentUser} />}
-      {editingEvent && <AddOrEditEventModal onClose={() => setEditingEvent(null)} onSubmit={updateEvent} initialData={editingEvent} currentUser={currentUser} />}
+      {showAdd && <AddOrEditEventModal onClose={() => setShowAdd(false)} onSubmit={addEvent} currentUser={currentUser} events={events} />}
+      {editingEvent && <AddOrEditEventModal onClose={() => setEditingEvent(null)} onSubmit={updateEvent} initialData={editingEvent} currentUser={currentUser} events={events} />}
 
       {selectedEvent && (
         <EventDetailModal
