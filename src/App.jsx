@@ -38,14 +38,14 @@ const INSTAGRAM_URL = "https://www.instagram.com/chathilmkt?igsh=MTgwZGdlbnVwMzQ
 
 const FACULTIES = [
   { id: "engineering", name: "Faculty of Engineering", short: "ENG", color: "#2E5C8A" },
-  { id: "medicine",    name: "Faculty of Medicine",    short: "MED", color: "#B0334D" },
-  { id: "management",  name: "Faculty of Management",  short: "MANAGEMENT", color: "#B8860B" },
+  { id: "medicine",    name: "Faculty of Medicine",    short: "FOM", color: "#B0334D" },
+  { id: "management",  name: "Faculty of Management",  short: "FMS", color: "#B8860B" },
   { id: "arts",        name: "Faculty of Arts",        short: "ARTS", color: "#7A4FA3" },
-  { id: "science",     name: "Faculty of Science",     short: "SCIENCE", color: "#6B2D3C" },
-  { id: "dental",      name: "Faculty of Dental Science", short: "DENTAL", color: "#1E8A8A" },
+  { id: "science",     name: "Faculty of Science",     short: "SCI", color: "#6B2D3C" },
+  { id: "dental",      name: "Faculty of Dental Science", short: "FDS", color: "#1E8A8A" },
   { id: "agriculture", name: "Faculty of Agriculture", short: "AGRI", color: "#7A4FA3" },
-  { id: "allied health sciences", name: "Faculty of Allied Health", short: "Allied", color: "#6B2D3C" },
-  { id: "veterniary and animal medicine", name: "Faculty of Veterinary Medicine", short: "VET", color: "#1E8A8A" },
+  { id: "allied health sciences", name: "Faculty of Allied Health", short: "FAHS", color: "#6B2D3C" },
+  { id: "veterniary and animal medicine", name: "Faculty of Veterinary Medicine", short: "FVMAS", color: "#1E8A8A" },
 ];
 
 const CATEGORIES = [
@@ -404,10 +404,11 @@ function EventCard({ ev, onOpen, isBookmarked, onToggleBookmark, isLiked, onTogg
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 mb-1 flex-wrap">
               <span
-                className="text-[9px] sm:text-[10px] font-semibold tracking-wide uppercase px-2 py-0.5 rounded-full truncate max-w-[150px]"
+                className="text-[9px] sm:text-[10px] font-semibold tracking-wide uppercase px-2 py-0.5 rounded-full"
                 style={{ color: f.color, backgroundColor: f.color + "14", fontFamily: "'IBM Plex Mono', monospace" }}
+                title={f.name}
               >
-                {f.name}
+                {f.short}
               </span>
               {c && <CategoryBadge category={ev.category} />}
               {isTrending && (
@@ -1096,7 +1097,7 @@ function EventDetailModal({ ev, onClose, onComment, onReact, onDelete, onEdit, i
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-2 flex-wrap">
               <FacultySeal faculty={ev.faculty} size="sm" />
-              <span className="text-[11px] font-semibold uppercase tracking-wide truncate max-w-[160px]" style={{ color: f.color, fontFamily: "'IBM Plex Mono', monospace" }}>{f.name}</span>
+              <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: f.color, fontFamily: "'IBM Plex Mono', monospace" }} title={f.name}>{f.name}</span>
               {c && <CategoryBadge category={ev.category} />}
             </div>
             <div className="flex items-center gap-1">
@@ -1542,6 +1543,17 @@ function CopyrightBadge() {
   );
 }
 
+// Shiny metallic "Campus Connect" wordmark to match the printed banner —
+// silver "Campus" + gold "Connect", with a diagonal light sweep.
+function ShinyLogoText({ sizeClass }) {
+  return (
+    <span className={`inline-flex items-baseline ${sizeClass}`} style={{ fontFamily: "'Fraunces', serif", fontWeight: 700 }}>
+      <span className="shiny-word shiny-silver">Campus</span>
+      <span className="shiny-word shiny-gold" style={{ marginLeft: 4 }}>Connect</span>
+    </span>
+  );
+}
+
 export default function App() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1821,6 +1833,16 @@ export default function App() {
     return new Set(sorted.filter((s) => s.score > 0).slice(0, cutoff).map((s) => s.id));
   }, [events]);
 
+  // Hero stats: only show a stat once it has real data behind it, so the
+  // hero never advertises "0 this week" / "0 saved" before there's
+  // anything to show.
+  const heroStats = [
+    { value: upcomingCount, label: "upcoming" },
+    { value: thisWeekCount, label: "this week" },
+    { value: FACULTIES.length, label: "faculties" },
+    { value: bookmarks.length, label: "saved by you" },
+  ].filter((s) => s.value > 0);
+
   return (
     <div style={{ backgroundColor: THEME.cream, minHeight: "100vh", fontFamily: "'Inter', sans-serif", transition: "background-color 0.2s ease" }}>
       <style>{`
@@ -1848,14 +1870,41 @@ export default function App() {
           50%  { transform: scale(1.2); opacity: 1; }
           100% { transform: scale(0.3); opacity: 0; }
         }
+        @keyframes shineSweep {
+          0%   { background-position: -150% 0; }
+          60%  { background-position: 250% 0; }
+          100% { background-position: 250% 0; }
+        }
 
         @media (prefers-reduced-motion: reduce) {
           .cyan-volumetric-haze { animation: none !important; opacity: 0.4 !important; }
+          .shiny-word { animation: none !important; }
         }
         select, input, textarea, button { font-family: 'Inter', sans-serif; }
         button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
           outline: 2px solid #00b8d4;
           outline-offset: 2px;
+        }
+
+        /* Shiny metallic wordmark, matching the printed banner: a brushed
+           silver "Campus" and a brushed gold "Connect", each with a soft
+           diagonal light sweep animating across the letters. */
+        .shiny-word {
+          background-repeat: no-repeat;
+          background-size: 200% 100%;
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          animation: shineSweep 4.5s ease-in-out infinite;
+        }
+        .shiny-silver {
+          background-image: linear-gradient(100deg, #c7cdd6 0%, #eef2f6 15%, #ffffff 25%, #eef2f6 35%, #aab2bd 50%, #eef2f6 65%, #ffffff 75%, #eef2f6 85%, #c7cdd6 100%);
+          text-shadow: 0 1px 2px rgba(0,0,0,0.35);
+        }
+        .shiny-gold {
+          background-image: linear-gradient(100deg, #a9820f 0%, #f0ce72 15%, #fff6da 25%, #f0ce72 35%, #c9a227 50%, #f0ce72 65%, #fff6da 75%, #f0ce72 85%, #a9820f 100%);
+          text-shadow: 0 1px 2px rgba(0,0,0,0.35);
+          animation-delay: 0.4s;
         }
       `}</style>
 
@@ -1880,8 +1929,8 @@ export default function App() {
             />
             <div className="min-w-0">
               <div className="flex items-center gap-2.5">
-                <h1 className="text-xl font-bold truncate leading-snug tracking-tight" style={{ fontFamily: "'Fraunces', serif", color: THEME.headerText }}>
-                  Campus Connect
+                <h1 className="text-xl font-bold truncate leading-snug tracking-tight" style={{ lineHeight: 1.2 }}>
+                  <ShinyLogoText sizeClass="text-xl" />
                 </h1>
                 <span className="inline-block text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-md border" style={{ backgroundColor: "rgba(0, 212, 255, 0.15)", borderColor: "#00d4ff", color: "#00d4ff", fontFamily: "'IBM Plex Mono', monospace" }}>
                   THE CAMPUS NOTICE BOARD
@@ -1954,8 +2003,8 @@ export default function App() {
                 className="w-9 h-9 object-contain flex-shrink-0"
               />
               <div className="min-w-0 flex flex-col justify-center">
-                <h1 className="text-base font-bold truncate leading-snug" style={{ fontFamily: "'Fraunces', serif", color: THEME.headerText }}>
-                  Campus Connect
+                <h1 className="text-base font-bold truncate leading-snug">
+                  <ShinyLogoText sizeClass="text-base" />
                 </h1>
                 <span className="inline-block text-[8px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded border" style={{ backgroundColor: "rgba(0, 212, 255, 0.15)", borderColor: "#00d4ff", color: "#00d4ff", fontFamily: "'IBM Plex Mono', monospace", width: "fit-content" }}>
                   THE CAMPUS NOTICE BOARD
@@ -2033,12 +2082,13 @@ export default function App() {
         <p className="mt-2.5 max-w-xl text-xs sm:text-sm" style={{ color: THEME.inkSoft, lineHeight: 1.5 }}>
           Every faculty posts here — talks, camps, festivals, and finals. Browse by day or month, and add your own event with a poster in a minute.
         </p>
-        <div className="flex flex-wrap gap-5 mt-4">
-          <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, color: THEME.ink, fontWeight: 600 }}>{upcomingCount}</span> <span className="text-xs" style={{ color: THEME.inkSoft }}>upcoming</span></div>
-          <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, color: THEME.ink, fontWeight: 600 }}>{thisWeekCount}</span> <span className="text-xs" style={{ color: THEME.inkSoft }}>this week</span></div>
-          <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, color: THEME.ink, fontWeight: 600 }}>{FACULTIES.length}</span> <span className="text-xs" style={{ color: THEME.inkSoft }}>faculties</span></div>
-          <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, color: THEME.ink, fontWeight: 600 }}>{bookmarks.length}</span> <span className="text-xs" style={{ color: THEME.inkSoft }}>saved by you</span></div>
-        </div>
+        {heroStats.length > 0 && (
+          <div className="flex flex-wrap gap-5 mt-4">
+            {heroStats.map((s) => (
+              <div key={s.label}><span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, color: THEME.ink, fontWeight: 600 }}>{s.value}</span> <span className="text-xs" style={{ color: THEME.inkSoft }}>{s.label}</span></div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Filter Controls */}
@@ -2062,6 +2112,7 @@ export default function App() {
                 backgroundColor: facultyFilter === f.id ? f.color : f.color + "14",
                 color: facultyFilter === f.id ? "#FFFFFF" : f.color,
               }}
+              title={f.name}
             >
               <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: facultyFilter === f.id ? "#FFFFFF" : f.color }} />
               {f.short}
