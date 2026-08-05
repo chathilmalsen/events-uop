@@ -76,12 +76,12 @@ const categoryOf = (id) => CATEGORIES.find((c) => c.id === id) || null;
 const LIGHT_THEME = {
   cream: "#FAF6EC", card: "#FFFDF8", ink: "#1B2740", inkSoft: "#5B6472",
   gold: "#C9A227", goldDeep: "#A9820F", line: "#E6DFCD", danger: "#B0334D",
-  headerBg: "#060A12", headerText: "#FFFFFF", headerSoft: "#94A3B8"
+  headerBg: "#0B1220", headerText: "#FFFFFF", headerSoft: "#A9B4C6", accent: "#8FA9D6"
 };
 const DARK_THEME = {
   cream: "#10141C", card: "#171C28", ink: "#EEF0F6", inkSoft: "#9AA3B8",
   gold: "#E8C158", goldDeep: "#F0CE72", line: "#2A3040", danger: "#E5657F",
-  headerBg: "#05080E", headerText: "#FFFFFF", headerSoft: "#9AA3B8"
+  headerBg: "#070B12", headerText: "#FFFFFF", headerSoft: "#9AA3B8", accent: "#9DB6E0"
 };
 let THEME = LIGHT_THEME;
 
@@ -404,14 +404,15 @@ function EventCard({ ev, onOpen, isBookmarked, onToggleBookmark, isLiked, onTogg
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 mb-1 flex-wrap">
               <span
-                className="text-[9px] sm:text-[10px] font-semibold tracking-wide uppercase px-2 py-0.5 rounded-full truncate max-w-[150px]"
+                className="text-[9px] sm:text-[10px] font-semibold tracking-wide uppercase px-2 py-0.5 rounded-full whitespace-nowrap"
                 style={{ color: f.color, backgroundColor: f.color + "14", fontFamily: "'IBM Plex Mono', monospace" }}
+                title={f.name}
               >
-                {f.name}
+                {f.short}
               </span>
               {c && <CategoryBadge category={ev.category} />}
               {isTrending && (
-                <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full flex items-center gap-0.5" style={{ color: "#B0334D", backgroundColor: "#B0334D18" }}>
+                <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full flex items-center gap-0.5" style={{ color: THEME.goldDeep, backgroundColor: THEME.gold + "22" }}>
                   <Flame size={10} /> Trending
                 </span>
               )}
@@ -1336,158 +1337,28 @@ function CalendarView({ events, month, setMonth, year, setYear, onOpen }) {
   );
 }
 
-// Optimized Header Background with Lighter, Vastu Area Animations and Periodic Shiny Sparkle Effects
+// Restrained institutional header background: a single soft gradient plus
+// a faint gold hairline, no motion. Reads as a university system, not a
+// consumer app.
 function HeaderGlow() {
-  const desktopLaserBeams = [
-    { angle: 12, top: "-30%", left: "-10%", width: "150%", coreThickness: 2, coneWidth: 120, opacity: 0.35, duration: "12s", delay: "0s" },
-    { angle: 22, top: "-40%", left: "-20%", width: "160%", coreThickness: 2.5, coneWidth: 140, opacity: 0.4, duration: "15s", delay: "-4s" },
-  ];
-
-  const mobileLaserBeams = [
-    { angle: 15, top: "-25%", left: "-15%", width: "140%", coreThickness: 1.5, coneWidth: 90, opacity: 0.3, duration: "10s", delay: "0s" },
-  ];
-
-  const shinySparkles = [
-    { top: "25%", left: "18%", size: "4px", duration: "4s", delay: "0s" },
-    { top: "65%", left: "45%", size: "5px", duration: "5s", delay: "1.5s" },
-    { top: "35%", left: "75%", size: "4px", duration: "4.5s", delay: "0.8s" },
-    { top: "70%", left: "88%", size: "6px", duration: "6s", delay: "2s" },
-    { top: "20%", left: "55%", size: "3.5px", duration: "3.8s", delay: "2.5s" },
-  ];
-
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-      {/* Dark Ambient Background Gradient */}
       <div
         style={{
           position: "absolute", inset: 0,
-          background: "radial-gradient(circle at 20% -20%, #02233b 0%, #05080e 70%, #030509 100%)",
+          background: "radial-gradient(circle at 15% -30%, #16233d 0%, #0b1220 60%, #070b12 100%)",
         }}
       />
-
-      {/* Atmospheric Soft Cyan Bloom */}
       <div
-        style={{
-          position: "absolute",
-          top: "-80px", left: "-60px",
-          width: "450px", height: "280px",
-          borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(0, 212, 255, 0.2) 0%, rgba(0, 119, 255, 0.08) 50%, transparent 80%)",
-          filter: "blur(45px)",
-          animation: "cyanPointPulse 7s ease-in-out infinite alternate",
-        }}
-      />
-
-      {/* DESKTOP LIGHTER WIDE LASER BEAMS */}
-      <div className="hidden sm:block absolute inset-0">
-        {desktopLaserBeams.map((b, i) => (
-          <div
-            key={i}
-            style={{
-              position: "absolute",
-              top: b.top,
-              left: b.left,
-              width: b.width,
-              transformOrigin: "0% 0%",
-              transform: `rotate(${b.angle}deg)`,
-              animation: `laserSweep ${b.duration} ease-in-out ${b.delay} infinite alternate`,
-            }}
-          >
-            <div
-              style={{
-                position: "absolute",
-                top: `-${b.coneWidth / 2}px`,
-                left: 0,
-                width: "100%",
-                height: `${b.coneWidth}px`,
-                background: "linear-gradient(90deg, rgba(0,212,255,0.3) 0%, rgba(0,183,255,0.1) 35%, rgba(0,102,255,0.02) 70%, transparent 100%)",
-                filter: "blur(25px)",
-                opacity: b.opacity,
-                clipPath: "polygon(0% 45%, 100% 0%, 100% 100%, 0% 55%)",
-              }}
-            />
-            <div
-              style={{
-                position: "absolute",
-                top: `-${b.coreThickness / 2}px`,
-                left: 0,
-                width: "100%",
-                height: `${b.coreThickness}px`,
-                background: "linear-gradient(90deg, rgba(255,255,255,0.8) 0%, rgba(0,229,255,0.4) 30%, transparent 90%)",
-                boxShadow: "0 0 8px rgba(0,229,255,0.3)",
-              }}
-            />
-          </div>
-        ))}
-      </div>
-
-      {/* MOBILE LIGHTER WIDE LASER BEAMS */}
-      <div className="block sm:hidden absolute inset-0">
-        {mobileLaserBeams.map((b, i) => (
-          <div
-            key={i}
-            style={{
-              position: "absolute",
-              top: b.top,
-              left: b.left,
-              width: b.width,
-              transformOrigin: "0% 0%",
-              transform: `rotate(${b.angle}deg)`,
-              animation: `laserSweep ${b.duration} ease-in-out ${b.delay} infinite alternate`,
-            }}
-          >
-            <div
-              style={{
-                position: "absolute",
-                top: `-${b.coneWidth / 2}px`,
-                left: 0,
-                width: "100%",
-                height: `${b.coneWidth}px`,
-                background: "linear-gradient(90deg, rgba(0,212,255,0.25) 0%, rgba(0,183,255,0.08) 40%, transparent 100%)",
-                filter: "blur(20px)",
-                opacity: b.opacity,
-                clipPath: "polygon(0% 45%, 100% 0%, 100% 100%, 0% 55%)",
-              }}
-            />
-            <div
-              style={{
-                position: "absolute",
-                top: `-${b.coreThickness / 2}px`,
-                left: 0,
-                width: "100%",
-                height: `${b.coreThickness}px`,
-                background: "linear-gradient(90deg, rgba(255,255,255,0.7) 0%, rgba(0,229,255,0.3) 35%, transparent 85%)",
-              }}
-            />
-          </div>
-        ))}
-      </div>
-
-      {/* TIME-TO-TIME SHINY SPARKLES */}
-      {shinySparkles.map((s, i) => (
-        <div
-          key={i}
-          style={{
-            position: "absolute",
-            top: s.top,
-            left: s.left,
-            width: s.size,
-            height: s.size,
-            borderRadius: "50%",
-            backgroundColor: "#ffffff",
-            boxShadow: "0 0 8px 2px rgba(0, 229, 255, 0.8), 0 0 15px 4px rgba(255, 255, 255, 0.6)",
-            animation: `shinySparkleAnimation ${s.duration} ease-in-out ${s.delay} infinite`,
-          }}
-        />
-      ))}
-
-      {/* Atmospheric Smoke Particle Flow Layer */}
-      <div
-        className="cyan-volumetric-haze"
         style={{
           position: "absolute", inset: 0,
-          background: "radial-gradient(ellipse at 20% 10%, rgba(0, 229, 255, 0.08) 0%, transparent 65%)",
-          animation: "hazeFlow 12s ease-in-out infinite alternate",
+          background: "linear-gradient(120deg, rgba(201,162,39,0.05) 0%, transparent 40%)",
+        }}
+      />
+      <div
+        style={{
+          position: "absolute", left: 0, right: 0, bottom: 0, height: 1,
+          background: "linear-gradient(90deg, transparent, rgba(201,162,39,0.4), transparent)",
         }}
       />
     </div>
@@ -1519,25 +1390,20 @@ function ThemeToggle({ mode, setMode }) {
   );
 }
 
-// Small, unobtrusive copyright mark pinned to the bottom-right of the
-// viewport across every view (list, calendar, saved).
+// Small, unobtrusive copyright mark shown in the footer flow (not fixed),
+// so it never overlaps card content on short viewports.
 function CopyrightBadge() {
   return (
     <div
-      className="fixed bottom-3 right-3 z-30 select-none pointer-events-none"
+      className="text-center select-none"
       style={{
         fontSize: 10,
         fontFamily: "'IBM Plex Mono', monospace",
         color: THEME.inkSoft,
-        backgroundColor: THEME.card + "d9",
-        padding: "4px 10px",
-        borderRadius: 999,
-        border: `1px solid ${THEME.line}`,
-        backdropFilter: "blur(4px)",
-        WebkitBackdropFilter: "blur(4px)",
+        padding: "10px 0 22px",
       }}
     >
-      © {new Date().getFullYear()} Chathil Malsen
+      © {new Date().getFullYear()} Chathil Malsen · University of Peradeniya
     </div>
   );
 }
@@ -1821,6 +1687,18 @@ export default function App() {
     return new Set(sorted.filter((s) => s.score > 0).slice(0, cutoff).map((s) => s.id));
   }, [events]);
 
+  // Stat entries for the hero strip. Zero-value stats are hidden once there
+  // is at least one non-zero stat, so an early/quiet board doesn't read as
+  // empty or inactive.
+  const statEntries = [
+    { value: upcomingCount, label: "upcoming" },
+    { value: thisWeekCount, label: "this week" },
+    { value: FACULTIES.length, label: "faculties" },
+    { value: bookmarks.length, label: "saved by you" },
+  ];
+  const hasAnyNonZeroStat = statEntries.some((s) => s.value > 0);
+  const visibleStats = hasAnyNonZeroStat ? statEntries.filter((s) => s.value > 0 || s.label === "faculties") : statEntries;
+
   return (
     <div style={{ backgroundColor: THEME.cream, minHeight: "100vh", fontFamily: "'Inter', sans-serif", transition: "background-color 0.2s ease" }}>
       <style>{`
@@ -1829,43 +1707,20 @@ export default function App() {
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes riseIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-        
-        @keyframes laserSweep {
-          0%   { transform: rotate(12deg) scaleY(0.95); }
-          50%  { transform: rotate(20deg) scaleY(1.05); }
-          100% { transform: rotate(16deg) scaleY(0.98); }
-        }
-        @keyframes cyanPointPulse {
-          0%   { transform: scale(0.95); opacity: 0.6; }
-          100% { transform: scale(1.1); opacity: 0.9; }
-        }
-        @keyframes hazeFlow {
-          0%   { opacity: 0.2; transform: scale(1); }
-          100% { opacity: 0.5; transform: scale(1.1); }
-        }
-        @keyframes shinySparkleAnimation {
-          0%   { transform: scale(0.3); opacity: 0; }
-          50%  { transform: scale(1.2); opacity: 1; }
-          100% { transform: scale(0.3); opacity: 0; }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .cyan-volumetric-haze { animation: none !important; opacity: 0.4 !important; }
-        }
         select, input, textarea, button { font-family: 'Inter', sans-serif; }
         button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
-          outline: 2px solid #00b8d4;
+          outline: 2px solid #7A93C4;
           outline-offset: 2px;
         }
       `}</style>
 
-      {/* Header with High-Contrast Text & Lighter Wide Laser Effect with Sparkles */}
+      {/* Header: institutional navy with a single gold hairline accent */}
       <header
         className="sticky top-0 z-40 backdrop-blur relative overflow-hidden transition-colors"
         style={{
           backgroundColor: THEME.headerBg,
           borderBottom: `1px solid ${THEME.line}`,
-          boxShadow: "0 4px 25px rgba(0,0,0,0.4)"
+          boxShadow: "0 2px 12px rgba(0,0,0,0.25)"
         }}
       >
         <HeaderGlow />
@@ -1883,18 +1738,18 @@ export default function App() {
                 <h1 className="text-xl font-bold truncate leading-snug tracking-tight" style={{ fontFamily: "'Fraunces', serif", color: THEME.headerText }}>
                   Campus Connect
                 </h1>
-                <span className="inline-block text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-md border" style={{ backgroundColor: "rgba(0, 212, 255, 0.15)", borderColor: "#00d4ff", color: "#00d4ff", fontFamily: "'IBM Plex Mono', monospace" }}>
-                  THE CAMPUS NOTICE BOARD
+                <span className="inline-block text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-md border" style={{ backgroundColor: "rgba(201,162,39,0.1)", borderColor: "#C9A227", color: "#E8C158", fontFamily: "'IBM Plex Mono', monospace" }}>
+                  UNIVERSITY OF PERADENIYA
                 </span>
               </div>
               <div className="flex items-center gap-2 text-xs leading-tight mt-0.5" style={{ color: THEME.headerSoft }}>
-                <span>By Chathil Malsen</span>
+                <span>Maintained by Chathil Malsen</span>
                 <span>•</span>
-                <a href="https://www.linkedin.com/in/chathilmalsen" target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: "#38bdf8" }}>
+                <a href="https://www.linkedin.com/in/chathilmalsen" target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: THEME.accent }}>
                   LinkedIn
                 </a>
                 <span>•</span>
-                <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: "#38bdf8" }}>
+                <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: THEME.accent }}>
                   Instagram
                 </a>
               </div>
@@ -1906,7 +1761,7 @@ export default function App() {
             <button
               onClick={() => setShowUserModal(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors hover:bg-white/10"
-              style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", color: THEME.headerText }}
+              style={{ backgroundColor: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.16)", color: THEME.headerText }}
             >
               <User size={14} color={THEME.headerText} />
               <span className="max-w-[100px] truncate">{currentUser ? currentUser : "Author ID"}</span>
@@ -1925,7 +1780,7 @@ export default function App() {
               <button
                 onClick={() => setShowLogin(true)}
                 className="px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1 border hover:bg-white/10"
-                style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", color: THEME.headerText }}
+                style={{ backgroundColor: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.16)", color: THEME.headerText }}
                 title="Admin Login"
               >
                 <ShieldCheck size={14} />
@@ -1936,7 +1791,7 @@ export default function App() {
             <button
               onClick={() => setShowAdd(true)}
               className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-transform active:scale-95 shadow-md hover:shadow-lg"
-              style={{ backgroundColor: "#00e5ff", color: "#05080e" }}
+              style={{ backgroundColor: "#C9A227", color: "#1B2740" }}
             >
               <CalendarPlus size={16} />
               <span>Post Event</span>
@@ -1957,8 +1812,8 @@ export default function App() {
                 <h1 className="text-base font-bold truncate leading-snug" style={{ fontFamily: "'Fraunces', serif", color: THEME.headerText }}>
                   Campus Connect
                 </h1>
-                <span className="inline-block text-[8px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded border" style={{ backgroundColor: "rgba(0, 212, 255, 0.15)", borderColor: "#00d4ff", color: "#00d4ff", fontFamily: "'IBM Plex Mono', monospace", width: "fit-content" }}>
-                  THE CAMPUS NOTICE BOARD
+                <span className="inline-block text-[8px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded border" style={{ backgroundColor: "rgba(201,162,39,0.1)", borderColor: "#C9A227", color: "#E8C158", fontFamily: "'IBM Plex Mono', monospace", width: "fit-content" }}>
+                  UNIVERSITY OF PERADENIYA
                 </span>
               </div>
             </div>
@@ -1966,22 +1821,22 @@ export default function App() {
             <button
               onClick={() => setShowAdd(true)}
               className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold transition-transform active:scale-95 shadow-sm flex-shrink-0"
-              style={{ backgroundColor: "#00e5ff", color: "#05080e" }}
+              style={{ backgroundColor: "#C9A227", color: "#1B2740" }}
             >
               <CalendarPlus size={14} />
               <span>Post Event</span>
             </button>
           </div>
 
-          <div className="flex items-center justify-between pt-1.5 text-[10px]" style={{ borderTop: `1px dashed rgba(255,255,255,0.15)`, color: THEME.headerSoft }}>
+          <div className="flex items-center justify-between pt-1.5 text-[10px]" style={{ borderTop: `1px dashed rgba(255,255,255,0.12)`, color: THEME.headerSoft }}>
             <div className="flex items-center gap-1.5 truncate">
               <span>By Chathil Malsen</span>
               <span>•</span>
-              <a href="https://www.linkedin.com/in/chathilmalsen" target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: "#38bdf8" }}>
+              <a href="https://www.linkedin.com/in/chathilmalsen" target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: THEME.accent }}>
                 LinkedIn
               </a>
               <span>•</span>
-              <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: "#38bdf8" }}>
+              <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: THEME.accent }}>
                 Instagram
               </a>
             </div>
@@ -1991,7 +1846,7 @@ export default function App() {
               <button
                 onClick={() => setShowUserModal(true)}
                 className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border"
-                style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", color: THEME.headerText }}
+                style={{ backgroundColor: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.16)", color: THEME.headerText }}
               >
                 <User size={10} color={THEME.headerText} />
                 <span className="max-w-[55px] truncate">{currentUser ? currentUser : "Author ID"}</span>
@@ -2011,7 +1866,7 @@ export default function App() {
                   onClick={() => setShowLogin(true)}
                   aria-label="Admin login"
                   className="p-1 rounded-full border"
-                  style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", color: THEME.headerText }}
+                  style={{ backgroundColor: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.16)", color: THEME.headerText }}
                   title="Admin Login"
                 >
                   <ShieldCheck size={11} />
@@ -2034,10 +1889,12 @@ export default function App() {
           Every faculty posts here — talks, camps, festivals, and finals. Browse by day or month, and add your own event with a poster in a minute.
         </p>
         <div className="flex flex-wrap gap-5 mt-4">
-          <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, color: THEME.ink, fontWeight: 600 }}>{upcomingCount}</span> <span className="text-xs" style={{ color: THEME.inkSoft }}>upcoming</span></div>
-          <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, color: THEME.ink, fontWeight: 600 }}>{thisWeekCount}</span> <span className="text-xs" style={{ color: THEME.inkSoft }}>this week</span></div>
-          <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, color: THEME.ink, fontWeight: 600 }}>{FACULTIES.length}</span> <span className="text-xs" style={{ color: THEME.inkSoft }}>faculties</span></div>
-          <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, color: THEME.ink, fontWeight: 600 }}>{bookmarks.length}</span> <span className="text-xs" style={{ color: THEME.inkSoft }}>saved by you</span></div>
+          {visibleStats.map((s) => (
+            <div key={s.label}>
+              <span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, color: THEME.ink, fontWeight: 600 }}>{s.value}</span>{" "}
+              <span className="text-xs" style={{ color: THEME.inkSoft }}>{s.label}</span>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -2215,13 +2072,12 @@ export default function App() {
         )}
       </main>
 
-      <footer className="text-center py-6 text-[11px] px-4" style={{ color: THEME.inkSoft, borderTop: `1px solid ${THEME.line}` }}>
+      <footer className="text-center pt-6 text-[11px] px-4" style={{ color: THEME.inkSoft, borderTop: `1px solid ${THEME.line}` }}>
         CAMPUS CONNECT · THE CAMPUS NOTICE BOARD
         <br />
-        Created by Chathil Malsen, Mechanical Engineering Undergraduate, University of Peradeniya
+        Built and maintained by Chathil Malsen, Mechanical Engineering Undergraduate, University of Peradeniya
+        <CopyrightBadge />
       </footer>
-
-      <CopyrightBadge />
 
       {showLogin && <LoginModal onClose={() => setShowLogin(false)} onLoginSuccess={() => setIsAdmin(true)} />}
       {showUserModal && <SetUserModal onClose={() => setShowUserModal(false)} onSave={handleSaveUserName} currentName={currentUser} />}
