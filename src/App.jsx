@@ -2213,6 +2213,12 @@ export default function App() {
   const [editingEvent, setEditingEvent] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
 
+  const [announcements, setAnnouncements] = useState([]);
+  const [showAnnouncementAdmin, setShowAnnouncementAdmin] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(true);
+
   const [isAdmin, setIsAdmin] = useState(false);
   const [currentUser, setCurrentUser] = useState(localStorage.getItem("cg_user_name") || "");
   const [bookmarks, setBookmarks] = useState(getBookmarks());
@@ -2326,6 +2332,24 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+  const q = query(collection(db, "announcements"), orderBy("createdAt", "desc"));
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    setAnnouncements(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+  }, (error) => console.error("Firestore error (announcements):", error));
+  return () => unsubscribe();
+}, []);
+
+useEffect(() => {
+  if (!isAdmin) { setSuggestions([]); return; }
+  const q = query(collection(db, "suggestions"), orderBy("createdAt", "desc"));
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    setSuggestions(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+    setSuggestionsLoading(false);
+  }, (error) => { console.error("Firestore error (suggestions):", error); setSuggestionsLoading(false); });
+  return () => unsubscribe();
+}, [isAdmin]);
+
   const addTicket = async (form) => {
     try {
       await addDoc(collection(db, "tickets"), {
@@ -2362,6 +2386,38 @@ export default function App() {
       console.error("Error deleting ticket:", error);
     }
   };
+
+  const addAnnouncement = async (text) => {
+  try {
+    await addDoc(collection(db, "announcements"), { text, active: true, createdAt: Date.now() });
+  } catch (error) {
+    console.error("Error adding announcement:", error);
+  }
+};
+const toggleAnnouncement = async (id, active) => {
+  try { await updateDoc(doc(db, "announcements", id), { active }); }
+  catch (error) { console.error("Error toggling announcement:", error); }
+};
+const deleteAnnouncement = async (id) => {
+  if (!window.confirm("Delete this announcement?")) return;
+  try { await deleteDoc(doc(db, "announcements", id)); }
+  catch (error) { console.error("Error deleting announcement:", error); }
+};
+
+const addSuggestion = async (form) => {
+  try {
+    await addDoc(collection(db, "suggestions"), { ...form, createdAt: Date.now() });
+    return true;
+  } catch (error) {
+    console.error("Error adding suggestion:", error);
+    return false;
+  }
+};
+const deleteSuggestion = async (id) => {
+  if (!window.confirm("Delete this suggestion?")) return;
+  try { await deleteDoc(doc(db, "suggestions", id)); }
+  catch (error) { console.error("Error deleting suggestion:", error); }
+};
 
   useEffect(() => {
     const q = query(collection(db, "events"), orderBy("createdAt", "desc"));
@@ -2571,6 +2627,11 @@ export default function App() {
           60%  { background-position: 250% 0; }
           100% { background-position: 250% 0; }
         }
+        
+        @keyframes tickerScroll {
+          0%   { transform: translateX(0%); }
+          100% { transform: translateX(-100%); }
+        }
 
         @media (prefers-reduced-motion: reduce) {
           .cyan-volumetric-haze { animation: none !important; opacity: 0.4 !important; }
@@ -2603,7 +2664,11 @@ export default function App() {
           animation-delay: 0.4s;
         }
       `}</style>
-
+         <AnnouncementTicker
+          announcements={announcements}
+          isAdmin={isAdmin}
+          onManage={() => setShowAnnouncementAdmin(true)}
+        />
       {/* Header with High-Contrast Text & Lighter Wide Laser Effect with Sparkles */}
       <header
         className="sticky top-0 z-40 backdrop-blur relative overflow-hidden transition-colors"
@@ -2656,8 +2721,16 @@ export default function App() {
               <User size={14} color={THEME.headerText} />
               <span className="max-w-[100px] truncate">{currentUser ? currentUser : "Author ID"}</span>
             </button>
-
-            {isAdmin ? (
+            {isAdmin && (
+             <button
+              onClick={() => setShowAnalytics(true)}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold"
+              style={{ backgroundColor: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.2)", color: THEME.headerText }}
+            >
+              <ClipboardList size={13} /> Analytics
+            </button>
+          )}
+           {isAdmin ? (
               <button
                 onClick={handleAdminLogout}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold"
@@ -2741,7 +2814,11 @@ export default function App() {
                 <User size={10} color={THEME.headerText} />
                 <span className="max-w-[55px] truncate">{currentUser ? currentUser : "Author ID"}</span>
               </button>
-
+              {isAdmin && (
+               <button onClick={() => setShowAnalytics(true)} aria-label="Analytics" className="p-1 rounded-full border" style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", color: THEME.headerText }}>
+               <ClipboardList size={11} />
+                </button>
+              )}
               {isAdmin ? (
                 <button
                   onClick={handleAdminLogout}
@@ -2779,43 +2856,14 @@ export default function App() {
           onSignOut={handleUserSignOut}
         />
       ) : section === "developer" ? (
-  <div className="max-w-4xl mx-auto p-6 my-8 rounded-2xl" style={{ backgroundColor: THEME.card, border: `1px solid ${THEME.line}` }}>
-    <h2 style={{ fontFamily: "'Fraunces', serif", color: THEME.ink, fontSize: 22, fontWeight: 600 }} className="mb-2">Developer Contacts</h2>
-    <p className="text-sm mb-6" style={{ color: THEME.inkSoft }}>Got questions, feedback, or want to collaborate?</p>
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      <a href="https://www.linkedin.com/in/chathilmalsen" target="_blank" rel="noreferrer"
-         className="flex items-center gap-2 p-3 rounded-xl text-sm font-medium"
-         style={{ border: `1px solid ${THEME.line}`, color: THEME.ink }}>
-        LinkedIn
-      </a>
-      <a href= "https://youtube.com/@chathilmalsen?si=r2qH0DQiSDrx3BAa" target="_blank" rel="noreferrer"
-         className="flex items-center gap-2 p-3 rounded-xl text-sm font-medium"
-         style={{ border: `1px solid ${THEME.line}`, color: THEME.ink }}>
-        Youtube
-      </a>
-      <a href={INSTAGRAM_URL} target="_blank" rel="noreferrer"
-         className="flex items-center gap-2 p-3 rounded-xl text-sm font-medium"
-         style={{ border: `1px solid ${THEME.line}`, color: THEME.ink }}>
-        Instagram
-      </a>
-       <a href= "https://www.facebook.com/profile.php?id=61576211142033&mibextid=wwXIfr" target="_blank" rel="noreferrer"
-         className="flex items-center gap-2 p-3 rounded-xl text-sm font-medium"
-         style={{ border: `1px solid ${THEME.line}`, color: THEME.ink }}>
-        Facebook
-      </a>
-       <a href= "https://t.me/cmtutor" target="_blank" rel="noreferrer"
-         className="flex items-center gap-2 p-3 rounded-xl text-sm font-medium"
-         style={{ border: `1px solid ${THEME.line}`, color: THEME.ink }}>
-        Telegram
-      </a>
-       <a href= "https://www.tiktok.com/@chathil.malsen?_r=1&_t=ZS-98cpEQNblx7" target="_blank" rel="noreferrer"
-         className="flex items-center gap-2 p-3 rounded-xl text-sm font-medium"
-         style={{ border: `1px solid ${THEME.line}`, color: THEME.ink }}>
-        Tiktok
-      </a>
-      {/* add more rows the same way — email, etc */}
-    </div>
-  </div>
+        <DeveloperConnectSection
+    isAdmin={isAdmin}
+    suggestions={suggestions}
+    suggestionsLoading={suggestionsLoading}
+    onSubmitSuggestion={addSuggestion}
+    onDeleteSuggestion={deleteSuggestion}
+    />
+ 
 ) : (
       <>
       {/* Hero Section */}
@@ -3055,6 +3103,18 @@ export default function App() {
           authUser={authUser}
           defaultType={reportDefaultType}
         />
+      )}
+      {showAnnouncementAdmin && (
+       <AnnouncementAdminModal
+         onClose={() => setShowAnnouncementAdmin(false)}
+         announcements={announcements}
+         onAdd={addAnnouncement}
+         onToggle={toggleAnnouncement}
+         onDelete={deleteAnnouncement}
+       />
+      )}
+      {showAnalytics && (
+      <AnalyticsDashboard onClose={() => setShowAnalytics(false)} events={events} tickets={tickets} />
       )}
       {selectedTicket && (
         <TicketDetailModal
