@@ -1,3 +1,7 @@
+Content is user-generated and unverified.
+
+
+Learn how to customize
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Calendar, List as ListIcon, Search, Plus, X, MapPin, Clock,
@@ -5,14 +9,16 @@ import {
   Users, CalendarDays, AlertCircle, Edit, ShieldCheck, LogOut, User,
   CalendarPlus, Download, Heart, Bookmark, Share2, Eye, Flame,
   ExternalLink, Sun, Moon, Monitor, Copy, Check, Reply, Bell,
-  SlidersHorizontal, Ticket, Globe, MapPinned, Timer, QrCode
+  SlidersHorizontal, Ticket, Globe, MapPinned, Timer, QrCode,
+  PackageSearch, Wrench, ClipboardList, LogIn, UserPlus, Send,
+  CheckCircle2, CircleDot, Loader2, Home
 } from "lucide-react";
 
 // --- FIREBASE IMPORTS ---
 import { db, auth } from "./firebase";
-// Posters are compressed client-side and stored as base64 directly in the
-// event document (Firebase Storage isn't used in this build — see the
-// compressImage()/handlePosterFile() code below).
+// Posters/photos are compressed client-side and stored as base64 directly in
+// the Firestore document (Firebase Storage isn't used in this build — see
+// compressImage()/handlePosterFile() below).
 import {
   collection,
   addDoc,
@@ -29,8 +35,10 @@ import {
 } from "firebase/firestore";
 import {
   signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
   signOut,
-  onAuthStateChanged
+  onAuthStateChanged,
+  updateProfile
 } from "firebase/auth";
 
 const ADMIN_EMAIL = "ktchathilmalsencm@gmail.com";
@@ -69,6 +77,25 @@ const CATEGORIES = [
 ];
 
 const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢"];
+
+const TICKET_TYPES = [
+  { id: "lost", name: "Lost Item", icon: PackageSearch, color: "#B0334D" },
+  { id: "found", name: "Found Item", icon: PackageSearch, color: "#1E8A5C" },
+  { id: "facility", name: "Facility / Equipment Issue", icon: Wrench, color: "#A9820F" },
+];
+const TICKET_STATUSES = [
+  { id: "open", name: "Open", icon: CircleDot, color: "#B0334D" },
+  { id: "in_progress", name: "In Progress", icon: Loader2, color: "#A9820F" },
+  { id: "resolved", name: "Resolved", icon: CheckCircle2, color: "#1E8A5C" },
+];
+const ticketTypeOf = (id) => TICKET_TYPES.find((t) => t.id === id) || TICKET_TYPES[0];
+const ticketStatusOf = (id) => TICKET_STATUSES.find((s) => s.id === id) || TICKET_STATUSES[0];
+function formatTicketDate(ms) {
+  if (!ms) return "";
+  const d = new Date(ms);
+  return d.toLocaleDateString("en-US", { year: "numeric", month: "2-digit", day: "2-digit" }) +
+    " " + d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
+}
 
 const facultyOf = (id) => FACULTIES.find((f) => f.id === id) || { name: "General", short: "GEN", color: "#5B6472" };
 const categoryOf = (id) => CATEGORIES.find((c) => c.id === id) || null;
@@ -506,6 +533,13 @@ function Segmented({ options, value, onChange }) {
 function Modal({ onClose, children, wide }) {
   const modalRef = useRef(null);
   const previouslyFocused = useRef(null);
+  // Keep a ref to the latest onClose so the mount-only effect below can
+  // always call the current handler without needing onClose in its
+  // dependency array (see note below).
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     previouslyFocused.current = document.activeElement;
@@ -520,7 +554,7 @@ function Modal({ onClose, children, wide }) {
 
     const handleKeyDown = (e) => {
       if (e.key === "Escape") {
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key === "Tab" && modalRef.current) {
@@ -546,7 +580,15 @@ function Modal({ onClose, children, wide }) {
         previouslyFocused.current.focus();
       }
     };
-  }, [onClose]);
+    // Intentionally run this once on mount/unmount only. The parent
+    // components below pass an inline onClose/requestClose function that
+    // gets recreated on every render (e.g. every keystroke while typing in
+    // a form field). If onClose were in this dependency array, that would
+    // re-run this effect on every keystroke, re-stealing focus to the
+    // first focusable element in the modal — which is what was causing the
+    // mobile on-screen keyboard to flicker open/closed while typing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div
@@ -779,14 +821,14 @@ function AddOrEditEventModal({ onClose, onSubmit, initialData, currentUser }) {
 
   const submit = (e) => {
     e.preventDefault();
-    if (!form.title || !form.faculty || !form.date || !form.startTime || !form.location || !form.postedBy) {
-      setError("Please fill in all required fields.");
-      return;
-    }
+    // Only the registration link (if the user chose to enter one) is
+    // validated for format. Every other field is optional — post with
+    // whatever details are available and fill the rest in later.
     if (!isLikelyUrl(form.registrationLink)) {
       setError("Registration link should start with http:// or https://");
       return;
     }
+    setError("");
     onSubmit(form);
   };
 
@@ -807,11 +849,14 @@ function AddOrEditEventModal({ onClose, onSubmit, initialData, currentUser }) {
               <AlertCircle size={14} /> {error}
             </div>
           )}
-          <Field label="Event Title" required>
+          <p className="text-xs mb-3 flex items-center gap-1.5" style={{ color: THEME.inkSoft }}>
+            <AlertCircle size={13} /> Nothing below is required — fill in whatever details you have and post. You (or an admin) can always edit it later to add the rest.
+          </p>
+          <Field label="Event Title">
             <input style={inputStyle} value={form.title} onChange={set("title")} placeholder="e.g. Annual Tech Symposium" />
           </Field>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field label="Faculty" required>
+            <Field label="Faculty">
               <select style={inputStyle} value={form.faculty} onChange={set("faculty")}>
                 <option value="">Select faculty</option>
                 {FACULTIES.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
@@ -825,26 +870,26 @@ function AddOrEditEventModal({ onClose, onSubmit, initialData, currentUser }) {
             </Field>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field label="Date" required>
+            <Field label="Date">
               <input type="date" style={inputStyle} value={form.date} onChange={set("date")} />
             </Field>
-            <Field label="Organiser / Society" required>
+            <Field label="Organiser / Society">
               <input style={inputStyle} value={form.organizer} onChange={set("organizer")} placeholder="e.g. Students' Union" />
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Start Time" required>
+            <Field label="Start Time">
               <input type="time" style={inputStyle} value={form.startTime} onChange={set("startTime")} />
             </Field>
             <Field label="End Time">
               <input type="time" style={inputStyle} value={form.endTime} onChange={set("endTime")} />
             </Field>
           </div>
-          <Field label="Location" required>
+          <Field label="Location">
             <input style={inputStyle} value={form.location} onChange={set("location")} placeholder="e.g. Faculty of Arts – Lecture Hall 2" />
           </Field>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field label="Your Author Name" required>
+            <Field label="Your Author Name">
               <input style={inputStyle} value={form.postedBy} onChange={set("postedBy")} placeholder="Your name (for edits)" />
             </Field>
             <Field label="Contact Details">
@@ -1525,7 +1570,7 @@ function ThemeToggle({ mode, setMode }) {
 function CopyrightBadge() {
   return (
     <div
-      className="fixed bottom-3 right-3 z-30 select-none pointer-events-none"
+      className="fixed bottom-14 sm:bottom-3 right-3 z-30 select-none pointer-events-none"
       style={{
         fontSize: 10,
         fontFamily: "'IBM Plex Mono', monospace",
@@ -1554,7 +1599,493 @@ function ShinyLogoText({ sizeClass }) {
   );
 }
 
+// Regular-user sign in / sign up, using the SAME Firebase Auth project as
+// the admin login above — this just isn't restricted to ADMIN_EMAIL. Any
+// student can create an account here to file or track Lost & Found /
+// Facility Issue reports.
+function UserAuthModal({ onClose, onSuccess }) {
+  const [mode, setMode] = useState("login"); // "login" | "signup"
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const inputStyle = inputStyleFn();
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (!email.trim() || !password) {
+      setError("Please enter an email and password.");
+      return;
+    }
+    if (mode === "signup" && !name.trim()) {
+      setError("Please enter your name.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      if (mode === "signup") {
+        const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+        await updateProfile(cred.user, { displayName: name.trim() });
+      } else {
+        await signInWithEmailAndPassword(auth, email.trim(), password);
+      }
+      onSuccess();
+      onClose();
+    } catch (err) {
+      const map = {
+        "auth/email-already-in-use": "That email is already registered — try signing in instead.",
+        "auth/invalid-email": "That doesn't look like a valid email address.",
+        "auth/weak-password": "Password should be at least 6 characters.",
+        "auth/user-not-found": "No account found with that email.",
+        "auth/wrong-password": "Incorrect password.",
+        "auth/invalid-credential": "Incorrect email or password.",
+      };
+      setError(map[err.code] || "Something went wrong. Please try again.");
+    }
+    setSubmitting(false);
+  };
+
+  return (
+    <Modal onClose={onClose}>
+      <form onSubmit={submit} className="p-5 sm:p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 style={{ fontFamily: "'Fraunces', serif", color: THEME.ink, fontSize: 20, fontWeight: 600 }} className="flex items-center gap-2">
+            {mode === "login" ? <LogIn size={20} color={THEME.gold} /> : <UserPlus size={20} color={THEME.gold} />}
+            {mode === "login" ? "Sign In" : "Create Account"}
+          </h2>
+          <button type="button" onClick={onClose} aria-label="Close" className="p-1.5 rounded-full hover:bg-black/5">
+            <X size={18} color={THEME.inkSoft} />
+          </button>
+        </div>
+        <p className="text-xs mb-4" style={{ color: THEME.inkSoft }}>
+          Sign in to report or track Lost &amp; Found and Facility Issue tickets.
+        </p>
+        {error && (
+          <div className="flex items-center gap-2 text-xs mb-4 px-3 py-2 rounded-lg" style={{ backgroundColor: THEME.danger + "14", color: THEME.danger }}>
+            <AlertCircle size={14} /> {error}
+          </div>
+        )}
+        {mode === "signup" && (
+          <Field label="Full Name" required>
+            <input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Chath Perera" />
+          </Field>
+        )}
+        <Field label="Email" required>
+          <input type="email" style={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="username" />
+        </Field>
+        <Field label="Password" required>
+          <input type="password" style={inputStyle} value={password} onChange={(e) => setPassword(e.target.value)} placeholder={mode === "signup" ? "At least 6 characters" : "Your password"} autoComplete={mode === "signup" ? "new-password" : "current-password"} />
+        </Field>
+        <div className="flex justify-end gap-2 mt-6">
+          <button type="button" onClick={onClose} className="px-4 py-2 rounded-full text-sm font-medium" style={{ color: THEME.inkSoft }}>Cancel</button>
+          <button type="submit" disabled={submitting} className="px-5 py-2 rounded-full text-sm font-semibold disabled:opacity-60" style={{ backgroundColor: THEME.ink, color: THEME.cream }}>
+            {submitting ? "Please wait…" : mode === "login" ? "Sign In" : "Create Account"}
+          </button>
+        </div>
+        <p className="text-center text-xs mt-4" style={{ color: THEME.inkSoft }}>
+          {mode === "login" ? "New here?" : "Already have an account?"}{" "}
+          <button type="button" onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); }} className="font-semibold" style={{ color: THEME.goldDeep }}>
+            {mode === "login" ? "Create an account" : "Sign in"}
+          </button>
+        </p>
+      </form>
+    </Modal>
+  );
+}
+
+function ReportTicketModal({ onClose, onSubmit, authUser, defaultType }) {
+  const inputStyle = inputStyleFn();
+  const [form, setForm] = useState({
+    type: defaultType || "lost",
+    title: "",
+    description: "",
+    location: "",
+    contact: "",
+    photoUrl: "",
+  });
+  const [error, setError] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const handlePhotoFile = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { setError("Please choose an image file."); return; }
+    if (file.size > 8 * 1024 * 1024) { setError("Photo must be under 8MB."); return; }
+    setUploading(true);
+    setError("");
+    try {
+      const compressed = await compressImage(file);
+      const dataUrl = await fileToDataUrl(compressed);
+      setForm((f) => ({ ...f, photoUrl: dataUrl }));
+    } catch {
+      setError("Error processing image file. Please try a different image.");
+    }
+    setUploading(false);
+  };
+
+  const submit = (e) => {
+    e.preventDefault();
+    // Report type always has a default, but title/location/description/
+    // contact/photo are all optional — submit with whatever is filled in.
+    setError("");
+    onSubmit(form);
+  };
+
+  const typeInfo = ticketTypeOf(form.type);
+
+  return (
+    <Modal onClose={onClose} wide>
+      <form onSubmit={submit} className="flex flex-col h-full overflow-hidden">
+        <div className="flex items-center justify-between p-4 sm:p-6 pb-2">
+          <h2 style={{ fontFamily: "'Fraunces', serif", color: THEME.ink, fontSize: 20, fontWeight: 600 }}>
+            New Report
+          </h2>
+          <button type="button" onClick={onClose} aria-label="Close" className="p-1.5 rounded-full hover:bg-black/5">
+            <X size={18} color={THEME.inkSoft} />
+          </button>
+        </div>
+        <div className="px-4 sm:px-6 overflow-y-auto flex-1">
+          {error && (
+            <div className="flex items-center gap-2 text-xs mb-3 px-3 py-2 rounded-lg" style={{ backgroundColor: THEME.danger + "14", color: THEME.danger }}>
+              <AlertCircle size={14} /> {error}
+            </div>
+          )}
+          <p className="text-xs mb-3 flex items-center gap-1.5" style={{ color: THEME.inkSoft }}>
+            <AlertCircle size={13} /> Nothing below is required — submit with whatever details you have.
+          </p>
+          <Field label="Report Type">
+            <div className="flex flex-wrap gap-2">
+              {TICKET_TYPES.map((t) => {
+                const active = form.type === t.id;
+                const Icon = t.icon;
+                return (
+                  <button
+                    type="button" key={t.id}
+                    onClick={() => setForm((f) => ({ ...f, type: t.id }))}
+                    aria-pressed={active}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border"
+                    style={{ backgroundColor: active ? t.color : t.color + "14", color: active ? "#fff" : t.color, borderColor: active ? t.color : "transparent" }}
+                  >
+                    <Icon size={13} /> {t.name}
+                  </button>
+                );
+              })}
+            </div>
+          </Field>
+          <Field label={form.type === "facility" ? "Issue Title" : "Item Title"}>
+            <input style={inputStyle} value={form.title} onChange={set("title")} placeholder={form.type === "facility" ? "e.g. Broken AC in Lecture Hall 3" : "e.g. Student ID card"} />
+          </Field>
+          <Field label="Location">
+            <input style={inputStyle} value={form.location} onChange={set("location")} placeholder="e.g. Common room, Faculty of Engineering" />
+          </Field>
+          <Field label="Contact Details">
+            <input style={inputStyle} value={form.contact} onChange={set("contact")} placeholder="Email or phone so people can reach you (optional)" />
+          </Field>
+          <Field label="Description">
+            <textarea style={{ ...inputStyle, minHeight: 80, resize: "vertical" }} value={form.description} onChange={set("description")} placeholder="Any extra detail that helps identify the item or issue" />
+          </Field>
+          <Field label="Photo">
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                disabled={uploading}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold disabled:opacity-60"
+                style={{ backgroundColor: THEME.line, color: THEME.ink }}
+              >
+                <Upload size={13} /> {uploading ? "Uploading…" : "Choose Image"}
+              </button>
+              <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePhotoFile} className="hidden" />
+              {form.photoUrl && <img src={form.photoUrl} alt="Preview" className="w-10 h-10 rounded-lg object-cover" style={{ border: `1px solid ${THEME.line}` }} />}
+              {form.photoUrl && (
+                <button type="button" onClick={() => setForm((f) => ({ ...f, photoUrl: "" }))} className="text-xs font-semibold" style={{ color: THEME.danger }}>Remove</button>
+              )}
+            </div>
+          </Field>
+        </div>
+        <div className="flex items-center justify-end gap-2 p-4 sm:px-6" style={{ borderTop: `1px solid ${THEME.line}` }}>
+          <button type="button" onClick={onClose} className="px-4 py-2 rounded-full text-sm font-medium" style={{ color: THEME.inkSoft }}>Cancel</button>
+          <button type="submit" disabled={uploading} className="flex items-center gap-1.5 px-5 py-2 rounded-full text-sm font-semibold disabled:opacity-60" style={{ backgroundColor: typeInfo.color, color: "#fff" }}>
+            <Send size={14} /> Submit Report
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function TicketCard({ t, onOpen }) {
+  const type = ticketTypeOf(t.type);
+  const status = ticketStatusOf(t.status);
+  const TypeIcon = type.icon;
+  const StatusIcon = status.icon;
+  return (
+    <button
+      onClick={() => onOpen(t)}
+      className="text-left w-full rounded-2xl overflow-hidden p-3.5 sm:p-4 flex gap-3 sm:gap-4 items-start sm:items-center active:scale-[0.99] hover:-translate-y-0.5 transition-transform"
+      style={{ backgroundColor: THEME.card, border: `1px solid ${THEME.line}`, borderLeft: `5px solid ${type.color}` }}
+    >
+      {t.photoUrl ? (
+        <img src={t.photoUrl} alt={`Photo for ${t.title}`} className="w-16 h-16 rounded-xl object-cover flex-shrink-0" style={{ border: `1px solid ${THEME.line}` }} loading="lazy" onError={(e) => { e.target.style.display = "none"; }} />
+      ) : (
+        <div className="w-16 h-16 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `linear-gradient(135deg, ${type.color}22, ${type.color}0a)` }}>
+          <TypeIcon size={22} color={type.color} />
+        </div>
+      )}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+          <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full" style={{ color: type.color, backgroundColor: type.color + "14" }}>{type.name}</span>
+          <span className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full flex items-center gap-1" style={{ color: status.color, backgroundColor: status.color + "14" }}>
+            <StatusIcon size={10} /> {status.name}
+          </span>
+        </div>
+        <h3 className="font-semibold leading-tight truncate" style={{ color: THEME.ink, fontFamily: "'Fraunces', serif", fontSize: 15 }}>{t.title || "(untitled report)"}</h3>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-[11px] sm:text-xs" style={{ color: THEME.inkSoft }}>
+          <span className="flex items-center gap-1"><MapPin size={12} /> {t.location || "Location not specified"}</span>
+          <span>Reported by {t.reportedBy || "Anonymous"}</span>
+          <span>{formatTicketDate(t.createdAt)}</span>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function TicketDetailModal({ t, onClose, onUpdateStatus, onDelete, isAdmin, authUser }) {
+  const type = ticketTypeOf(t.type);
+  const status = ticketStatusOf(t.status);
+  const TypeIcon = type.icon;
+  const isOwner = Boolean(authUser && t.reporterUid && authUser.uid === t.reporterUid);
+  const canModify = isAdmin || isOwner;
+
+  return (
+    <Modal onClose={onClose} wide>
+      <div className="overflow-y-auto max-h-[85vh]">
+        <div style={{ background: `linear-gradient(135deg, ${type.color}20, ${THEME.card})` }} className="p-4 sm:p-6 pb-4">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="w-9 h-9 rounded-full flex items-center justify-center" style={{ backgroundColor: type.color + "18" }}><TypeIcon size={17} color={type.color} /></span>
+              <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: type.color }}>{type.name}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              {canModify && (
+                <button onClick={() => onDelete(t.id)} className="p-1.5 rounded-full hover:bg-black/5" aria-label="Delete report" title="Delete report">
+                  <Trash2 size={16} color={THEME.danger} />
+                </button>
+              )}
+              <button onClick={onClose} aria-label="Close" className="p-1.5 rounded-full hover:bg-black/5"><X size={18} color={THEME.inkSoft} /></button>
+            </div>
+          </div>
+          <h2 className="mt-3 pb-1" style={{ fontFamily: "'Fraunces', serif", color: THEME.ink, fontSize: 22, fontWeight: 600, lineHeight: 1.2 }}>{t.title || "(untitled report)"}</h2>
+          <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-2.5 text-xs" style={{ color: THEME.inkSoft }}>
+            <span className="flex items-center gap-1"><MapPin size={13} /> {t.location || "Location not specified"}</span>
+            <span className="flex items-center gap-1"><Users size={13} /> {t.reportedBy || "Anonymous"}</span>
+            <span className="flex items-center gap-1"><Clock size={13} /> {formatTicketDate(t.createdAt)}</span>
+          </div>
+
+          <div className="mt-4">
+            <p className="text-[10px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: THEME.inkSoft }}>Status</p>
+            {canModify ? (
+              <div className="flex flex-wrap gap-1.5">
+                {TICKET_STATUSES.map((s) => {
+                  const active = t.status === s.id;
+                  const Icon = s.icon;
+                  return (
+                    <button key={s.id} onClick={() => onUpdateStatus(t.id, s.id)} aria-pressed={active} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold" style={{ backgroundColor: active ? s.color : s.color + "14", color: active ? "#fff" : s.color }}>
+                      <Icon size={13} /> {s.name}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold" style={{ backgroundColor: status.color + "14", color: status.color }}>
+                <status.icon size={13} /> {status.name}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {t.photoUrl && (
+          <div className="w-full bg-black/20 flex items-center justify-center p-2">
+            <img src={t.photoUrl} alt={`Photo for ${t.title}`} className="w-full max-h-[400px] object-contain rounded-lg" onError={(e) => { e.target.style.display = "none"; }} />
+          </div>
+        )}
+
+        <div className="p-4 sm:p-6">
+          <p style={{ color: THEME.ink, lineHeight: 1.5, fontSize: 14 }}>{t.description || "No further details provided."}</p>
+          {t.contact && <p className="text-xs mt-3" style={{ color: THEME.inkSoft }}>Contact: <strong style={{ color: THEME.ink }}>{t.contact}</strong></p>}
+          {!canModify && !t.contact && (
+            <p className="text-xs mt-3" style={{ color: THEME.inkSoft }}>No contact details were shared. Reach out via the admin if you think this matches something of yours.</p>
+          )}
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function LostFoundSection({ tickets, loading, authUser, isAdmin, onOpenTicket, onRequestAuth, onOpenReport, onSignOut }) {
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [search, setSearch] = useState("");
+
+  const counts = useMemo(() => {
+    const c = { total: tickets.length, open: 0, in_progress: 0, resolved: 0 };
+    tickets.forEach((t) => { c[t.status] = (c[t.status] || 0) + 1; });
+    return c;
+  }, [tickets]);
+
+  const filtered = useMemo(() => {
+    return tickets.filter((t) => {
+      if (typeFilter !== "all" && t.type !== typeFilter) return false;
+      if (statusFilter !== "all" && t.status !== statusFilter) return false;
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const hay = `${t.title} ${t.description} ${t.location}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    }).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  }, [tickets, typeFilter, statusFilter, search]);
+
+  const startReport = (type) => {
+    if (!authUser) { onRequestAuth(); return; }
+    onOpenReport(type);
+  };
+
+  return (
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10 pb-24">
+      <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+        <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest" style={{ color: THEME.goldDeep, fontFamily: "'IBM Plex Mono', monospace" }}>
+          LOST &amp; FOUND · FACILITY ISSUES
+        </p>
+        {authUser ? (
+          <button onClick={onSignOut} className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ color: THEME.inkSoft, border: `1px solid ${THEME.line}` }}>
+            <User size={12} /> {authUser.displayName || authUser.email} <LogOut size={12} />
+          </button>
+        ) : (
+          <button onClick={onRequestAuth} className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ color: THEME.ink, border: `1px solid ${THEME.line}` }}>
+            <LogIn size={12} /> Sign in
+          </button>
+        )}
+      </div>
+      <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: "clamp(22px, 4.5vw, 34px)", color: THEME.ink, fontWeight: 600, lineHeight: 1.15, maxWidth: 720 }}>
+        Lost something? Found something? Something broken on campus?
+      </h1>
+      <p className="mt-2.5 max-w-xl text-xs sm:text-sm" style={{ color: THEME.inkSoft, lineHeight: 1.5 }}>
+        One portal for Lost &amp; Found and facility/equipment issues, right inside Campus Connect.
+      </p>
+
+      <div className="flex flex-wrap gap-2 mt-5">
+        <button onClick={() => startReport("lost")} className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold" style={{ backgroundColor: "#B0334D", color: "#fff" }}>
+          <PackageSearch size={15} /> Report Lost Item
+        </button>
+        <button onClick={() => startReport("found")} className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold" style={{ backgroundColor: "#1E8A5C", color: "#fff" }}>
+          <PackageSearch size={15} /> Report Found Item
+        </button>
+        <button onClick={() => startReport("facility")} className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold" style={{ backgroundColor: "#A9820F", color: "#fff" }}>
+          <Wrench size={15} /> Report Facility Issue
+        </button>
+      </div>
+
+      <div className="flex flex-wrap gap-5 mt-5">
+        <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, color: THEME.ink, fontWeight: 600 }}>{counts.total}</span> <span className="text-xs" style={{ color: THEME.inkSoft }}>total reports</span></div>
+        <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, color: "#B0334D", fontWeight: 600 }}>{counts.open || 0}</span> <span className="text-xs" style={{ color: THEME.inkSoft }}>open</span></div>
+        <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, color: "#A9820F", fontWeight: 600 }}>{counts.in_progress || 0}</span> <span className="text-xs" style={{ color: THEME.inkSoft }}>in progress</span></div>
+        <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, color: "#1E8A5C", fontWeight: 600 }}>{counts.resolved || 0}</span> <span className="text-xs" style={{ color: THEME.inkSoft }}>resolved</span></div>
+      </div>
+
+      <div className="mt-6">
+        <div className="relative mb-3">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" color={THEME.inkSoft} />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search reports…" aria-label="Search reports" style={{ ...inputStyleFn(), paddingLeft: 32 }} />
+        </div>
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-2 mb-2">
+          <button onClick={() => setTypeFilter("all")} aria-pressed={typeFilter === "all"} className="px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap flex-shrink-0" style={{ backgroundColor: typeFilter === "all" ? THEME.ink : THEME.line + "88", color: typeFilter === "all" ? THEME.cream : THEME.inkSoft }}>All types</button>
+          {TICKET_TYPES.map((t) => (
+            <button key={t.id} onClick={() => setTypeFilter(t.id)} aria-pressed={typeFilter === t.id} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap flex-shrink-0" style={{ backgroundColor: typeFilter === t.id ? t.color : t.color + "14", color: typeFilter === t.id ? "#fff" : t.color }}>
+              {t.name}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-2 mb-4">
+          <button onClick={() => setStatusFilter("all")} aria-pressed={statusFilter === "all"} className="px-3 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap flex-shrink-0" style={{ backgroundColor: statusFilter === "all" ? THEME.goldDeep : THEME.line + "88", color: statusFilter === "all" ? "#fff" : THEME.inkSoft }}>All statuses</button>
+          {TICKET_STATUSES.map((s) => (
+            <button key={s.id} onClick={() => setStatusFilter(s.id)} aria-pressed={statusFilter === s.id} className="flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap flex-shrink-0" style={{ backgroundColor: statusFilter === s.id ? s.color : s.color + "14", color: statusFilter === s.id ? "#fff" : s.color }}>
+              {s.name}
+            </button>
+          ))}
+        </div>
+
+        {loading ? (
+          <p className="text-xs py-10 text-center" style={{ color: THEME.inkSoft }}>Loading reports…</p>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-12">
+            <ClipboardList size={28} color={THEME.inkSoft} className="mx-auto mb-2" />
+            <p style={{ fontFamily: "'Fraunces', serif", fontSize: 18, color: THEME.ink }}>Nothing here yet</p>
+            <p className="text-xs mt-1" style={{ color: THEME.inkSoft }}>Be the first to file a report, or adjust your filters.</p>
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {filtered.map((t) => <TicketCard key={t.id} t={t} onOpen={onOpenTicket} />)}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Persistent bottom navigation bar, visible at every viewport size, so
+// switching between the Events board and Lost & Found / Facility Issues
+// feels like one app instead of two.
+function BottomNav({ section, setSection, isAdmin }) {
+  const items = [
+    { id: "events", label: "Events", icon: Home },
+    { id: "lostfound", label: "Lost & Found", icon: PackageSearch },
+  ];
+  return (
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-40 flex items-stretch"
+      style={{
+        backgroundColor: THEME.headerBg,
+        borderTop: `1px solid rgba(255,255,255,0.1)`,
+        paddingBottom: "env(safe-area-inset-bottom, 0px)",
+        boxShadow: "0 -4px 20px rgba(0,0,0,0.35)",
+      }}
+    >
+      {items.map((it) => {
+        const Icon = it.icon;
+        const active = section === it.id;
+        return (
+          <button
+            key={it.id}
+            onClick={() => setSection(it.id)}
+            aria-pressed={active}
+            className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2"
+            style={{ color: active ? "#00e5ff" : "#94A3B8" }}
+          >
+            <Icon size={19} strokeWidth={active ? 2.4 : 2} />
+            <span className="text-[10px] font-semibold">{it.label}</span>
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
 export default function App() {
+  const [section, setSection] = useState("events"); // "events" | "lostfound"
+
+  const [tickets, setTickets] = useState([]);
+  const [ticketsLoading, setTicketsLoading] = useState(true);
+  const [authUser, setAuthUser] = useState(null); // any signed-in Firebase user (regular or admin)
+  const [showUserAuth, setShowUserAuth] = useState(false);
+  const [showReportTicket, setShowReportTicket] = useState(false);
+  const [reportDefaultType, setReportDefaultType] = useState("lost");
+  const [selectedTicket, setSelectedTicket] = useState(null);
+
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState("list");
@@ -1660,6 +2191,7 @@ export default function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setIsAdmin(Boolean(user && user.email === ADMIN_EMAIL));
+      setAuthUser(user || null);
     });
     return () => unsubscribe();
   }, []);
@@ -1667,6 +2199,61 @@ export default function App() {
   const handleAdminLogout = async () => {
     await signOut(auth);
     setIsAdmin(false);
+  };
+
+  const handleUserSignOut = async () => {
+    await signOut(auth);
+    setAuthUser(null);
+  };
+
+  // Live Lost & Found / Facility Issue tickets, same Firestore project as events.
+  useEffect(() => {
+    const q = query(collection(db, "tickets"), orderBy("createdAt", "desc"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setTickets(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+      setTicketsLoading(false);
+    }, (error) => {
+      console.error("Firestore error (tickets):", error);
+      setTicketsLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const addTicket = async (form) => {
+    try {
+      await addDoc(collection(db, "tickets"), {
+        ...form,
+        status: "open",
+        reportedBy: authUser?.displayName || authUser?.email || "Anonymous",
+        reporterUid: authUser?.uid || null,
+        reporterEmail: authUser?.email || null,
+        createdAt: Date.now(),
+      });
+      setShowReportTicket(false);
+    } catch (error) {
+      console.error("Error adding ticket:", error);
+      alert("Could not submit report. Please try again.");
+    }
+  };
+
+  const updateTicketStatus = async (ticketId, status) => {
+    try {
+      await updateDoc(doc(db, "tickets", ticketId), { status });
+      setSelectedTicket((prev) => (prev && prev.id === ticketId ? { ...prev, status } : prev));
+    } catch (error) {
+      console.error("Error updating ticket status:", error);
+    }
+  };
+
+  const deleteTicket = async (ticketId) => {
+    const t = tickets.find((x) => x.id === ticketId);
+    if (!window.confirm(`Delete "${t ? t.title : "this report"}"?`)) return;
+    try {
+      await deleteDoc(doc(db, "tickets", ticketId));
+      setSelectedTicket(null);
+    } catch (error) {
+      console.error("Error deleting ticket:", error);
+    }
   };
 
   useEffect(() => {
@@ -1688,7 +2275,9 @@ export default function App() {
 
   const addEvent = async (ev) => {
     try {
-      handleSaveUserName(ev.postedBy);
+      // postedBy is now optional too — only remember it as the author name
+      // for next time if the user actually filled it in.
+      if (ev.postedBy) handleSaveUserName(ev.postedBy);
       await addDoc(collection(db, "events"), {
         ...ev,
         views: 0,
@@ -2071,6 +2660,19 @@ export default function App() {
         </div>
       </header>
 
+      {section === "lostfound" ? (
+        <LostFoundSection
+          tickets={tickets}
+          loading={ticketsLoading}
+          authUser={authUser}
+          isAdmin={isAdmin}
+          onOpenTicket={setSelectedTicket}
+          onRequestAuth={() => setShowUserAuth(true)}
+          onOpenReport={(type) => { setReportDefaultType(type); setShowReportTicket(true); }}
+          onSignOut={handleUserSignOut}
+        />
+      ) : (
+      <>
       {/* Hero Section */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10 pb-6">
         <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: THEME.goldDeep, fontFamily: "'IBM Plex Mono', monospace" }}>
@@ -2266,13 +2868,16 @@ export default function App() {
         )}
       </main>
 
-      <footer className="text-center py-6 text-[11px] px-4" style={{ color: THEME.inkSoft, borderTop: `1px solid ${THEME.line}` }}>
+      <footer className="text-center py-6 text-[11px] px-4 pb-24 sm:pb-24" style={{ color: THEME.inkSoft, borderTop: `1px solid ${THEME.line}` }}>
         CAMPUS CONNECT · THE CAMPUS NOTICE BOARD
         <br />
         Created by Chathil Malsen, Mechanical Engineering Undergraduate, University of Peradeniya
       </footer>
+      </>
+      )}
 
       <CopyrightBadge />
+      <BottomNav section={section} setSection={setSection} isAdmin={isAdmin} />
 
       {showLogin && <LoginModal onClose={() => setShowLogin(false)} onLoginSuccess={() => setIsAdmin(true)} />}
       {showUserModal && <SetUserModal onClose={() => setShowUserModal(false)} onSave={handleSaveUserName} currentName={currentUser} />}
@@ -2294,6 +2899,26 @@ export default function App() {
           onToggleBookmark={toggleBookmark}
           isLiked={((events.find((e) => e.id === selectedEvent.id) || selectedEvent).likes || []).includes(anonId)}
           onToggleLike={toggleLike}
+        />
+      )}
+
+      {showUserAuth && <UserAuthModal onClose={() => setShowUserAuth(false)} onSuccess={() => {}} />}
+      {showReportTicket && (
+        <ReportTicketModal
+          onClose={() => setShowReportTicket(false)}
+          onSubmit={addTicket}
+          authUser={authUser}
+          defaultType={reportDefaultType}
+        />
+      )}
+      {selectedTicket && (
+        <TicketDetailModal
+          t={tickets.find((x) => x.id === selectedTicket.id) || selectedTicket}
+          onClose={() => setSelectedTicket(null)}
+          onUpdateStatus={updateTicketStatus}
+          onDelete={deleteTicket}
+          isAdmin={isAdmin}
+          authUser={authUser}
         />
       )}
     </div>
