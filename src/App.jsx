@@ -37,7 +37,6 @@ import {
   updateProfile
 } from "firebase/auth";
 
-
 const ADMIN_EMAIL = "ktchathilmalsencm@gmail.com";
 const INSTAGRAM_URL = "https://www.instagram.com/chathilmkt?igsh=MTgwZGdlbnVwMzQzeA%3D%3D&utm_source=qr";
 
@@ -2184,62 +2183,6 @@ function BottomNav({ section, setSection, isAdmin }) {
 }
 
 export default function App() {
-  // -------------------------------------------------------------
-  // 2. PASTE PART 1 HERE (Inside your component, before `return`)
-  // -------------------------------------------------------------
-  const [isAdmin, setIsAdmin] = useState(true); // Change to false to hide admin inbox
-  const [feedbackSent, setFeedbackSent] = useState(false);
-  const [feedbackForm, setFeedbackForm] = useState({ name: '', contact: '', message: '' });
-  
-  // Storage for submitted suggestions
-  const [suggestions, setSuggestions] = useState([
-    {
-      id: 1,
-      name: "John Doe",
-      contact: "john@uni.ac.lk",
-      message: "Can you add a dark mode toggle to the timetable section?",
-      createdAt: "2026-08-05"
-    }
-  ]);
-
-  // Function that runs when the user clicks "Send Suggestion"
-  const handleSendFeedback = (e) => {
-    e.preventDefault();
-    if (!feedbackForm.message.trim()) return;
-
-    const newItem = {
-      id: Date.now(),
-      name: feedbackForm.name.trim() || 'Anonymous',
-      contact: feedbackForm.contact.trim() || 'Not provided',
-      message: feedbackForm.message,
-      createdAt: new Date().toISOString().split('T')[0]
-    };
-
-    setSuggestions([newItem, ...suggestions]);
-    setFeedbackForm({ name: '', contact: '', message: '' });
-    setFeedbackSent(true);
-    setTimeout(() => setFeedbackSent(false), 4000);
-  };
-
-  // -------------------------------------------------------------
-  // 3. YOUR EXISTING JSX (RETURN STATEMENT)
-  // -------------------------------------------------------------
-  return (
-    <div>
-      {/* ... your other sections ... */}
-
-      {/* PASTE PART 2 HERE (Replacing your old developer section) */}
-      {section === "developer" ? (
-        <div className="max-w-4xl mx-auto space-y-8 my-8">
-          {/* ... Section UI Code ... */}
-        </div>
-      ) : (
-        /* ... next section ... */
-        null
-      )}
-    </div>
-  );
-
   const [section, setSection] = useState("events"); // "events" | "lostfound"
 
   const [tickets, setTickets] = useState([]);
@@ -2836,153 +2779,42 @@ export default function App() {
           onSignOut={handleUserSignOut}
         />
       ) : section === "developer" ? (
-  <div className="max-w-4xl mx-auto space-y-8 my-8">
-    {/* ---------------- DEVELOPER CONTACTS ---------------- */}
-    <div className="p-6 rounded-2xl" style={{ backgroundColor: THEME.card, border: `1px solid ${THEME.line}` }}>
-      <h2 style={{ fontFamily: "'Fraunces', serif", color: THEME.ink, fontSize: 22, fontWeight: 600 }} className="mb-2">
-        Developer Contacts
-      </h2>
-      <p className="text-sm mb-6" style={{ color: THEME.inkSoft }}>Got questions, feedback, or want to collaborate?</p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <a href="https://www.linkedin.com/in/chathilmalsen" target="_blank" rel="noreferrer"
-           className="flex items-center gap-2 p-3 rounded-xl text-sm font-medium"
-           style={{ border: `1px solid ${THEME.line}`, color: THEME.ink }}>
-          LinkedIn
-        </a>
-        <a href="https://youtube.com/@chathilmalsen?si=r2qH0DQiSDrx3BAa" target="_blank" rel="noreferrer"
-           className="flex items-center gap-2 p-3 rounded-xl text-sm font-medium"
-           style={{ border: `1px solid ${THEME.line}`, color: THEME.ink }}>
-          Youtube
-        </a>
-        <a href={INSTAGRAM_URL} target="_blank" rel="noreferrer"
-           className="flex items-center gap-2 p-3 rounded-xl text-sm font-medium"
-           style={{ border: `1px solid ${THEME.line}`, color: THEME.ink }}>
-          Instagram
-        </a>
-        <a href="https://www.facebook.com/profile.php?id=61576211142033&mibextid=wwXIfr" target="_blank" rel="noreferrer"
-           className="flex items-center gap-2 p-3 rounded-xl text-sm font-medium"
-           style={{ border: `1px solid ${THEME.line}`, color: THEME.ink }}>
-          Facebook
-        </a>
-        <a href="https://t.me/cmtutor" target="_blank" rel="noreferrer"
-           className="flex items-center gap-2 p-3 rounded-xl text-sm font-medium"
-           style={{ border: `1px solid ${THEME.line}`, color: THEME.ink }}>
-          Telegram
-        </a>
-        <a href="https://www.tiktok.com/@chathil.malsen?_r=1&_t=ZS-98cpEQNblx7" target="_blank" rel="noreferrer"
-           className="flex items-center gap-2 p-3 rounded-xl text-sm font-medium"
-           style={{ border: `1px solid ${THEME.line}`, color: THEME.ink }}>
-          Tiktok
-        </a>
-      </div>
+  <div className="max-w-4xl mx-auto p-6 my-8 rounded-2xl" style={{ backgroundColor: THEME.card, border: `1px solid ${THEME.line}` }}>
+    <h2 style={{ fontFamily: "'Fraunces', serif", color: THEME.ink, fontSize: 22, fontWeight: 600 }} className="mb-2">Developer Contacts</h2>
+    <p className="text-sm mb-6" style={{ color: THEME.inkSoft }}>Got questions, feedback, or want to collaborate?</p>
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <a href="https://www.linkedin.com/in/chathilmalsen" target="_blank" rel="noreferrer"
+         className="flex items-center gap-2 p-3 rounded-xl text-sm font-medium"
+         style={{ border: `1px solid ${THEME.line}`, color: THEME.ink }}>
+        LinkedIn
+      </a>
+      <a href= "https://youtube.com/@chathilmalsen?si=r2qH0DQiSDrx3BAa" target="_blank" rel="noreferrer"
+         className="flex items-center gap-2 p-3 rounded-xl text-sm font-medium"
+         style={{ border: `1px solid ${THEME.line}`, color: THEME.ink }}>
+        Youtube
+      </a>
+      <a href={INSTAGRAM_URL} target="_blank" rel="noreferrer"
+         className="flex items-center gap-2 p-3 rounded-xl text-sm font-medium"
+         style={{ border: `1px solid ${THEME.line}`, color: THEME.ink }}>
+        Instagram
+      </a>
+       <a href= "https://www.facebook.com/profile.php?id=61576211142033&mibextid=wwXIfr" target="_blank" rel="noreferrer"
+         className="flex items-center gap-2 p-3 rounded-xl text-sm font-medium"
+         style={{ border: `1px solid ${THEME.line}`, color: THEME.ink }}>
+        Facebook
+      </a>
+       <a href= "https://t.me/cmtutor" target="_blank" rel="noreferrer"
+         className="flex items-center gap-2 p-3 rounded-xl text-sm font-medium"
+         style={{ border: `1px solid ${THEME.line}`, color: THEME.ink }}>
+        Telegram
+      </a>
+       <a href= "https://www.tiktok.com/@chathil.malsen?_r=1&_t=ZS-98cpEQNblx7" target="_blank" rel="noreferrer"
+         className="flex items-center gap-2 p-3 rounded-xl text-sm font-medium"
+         style={{ border: `1px solid ${THEME.line}`, color: THEME.ink }}>
+        Tiktok
+      </a>
+      {/* add more rows the same way — email, etc */}
     </div>
-
-    {/* ---------------- SUGGESTION FORM ---------------- */}
-    <div className="p-6 sm:p-8 rounded-3xl" style={{ backgroundColor: "#FCFBF7", border: "1px solid #ECE8DF" }}>
-      <h2 style={{ fontFamily: "'Fraunces', serif", color: "#192238" }} className="text-2xl font-bold mb-2 tracking-tight">
-        Send a Feedback or Suggestion
-      </h2>
-      <p className="text-sm mb-6" style={{ color: "#525B6C" }}>
-        Have ideas to improve Campus Connect? Let the developers know directly.
-      </p>
-
-      {feedbackSent ? (
-        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-medium">
-          ✓ Thank you! Your suggestion has been sent.
-        </div>
-      ) : (
-        <form onSubmit={handleSendFeedback} className="space-y-4">
-          <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: "#64748B" }}>
-              YOUR NAME (OPTIONAL)
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. John Doe"
-              value={feedbackForm.name}
-              onChange={(e) => setFeedbackForm({ ...feedbackForm, name: e.target.value })}
-              className="w-full bg-white border border-[#E2E8F0] rounded-xl px-4 py-3 text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#192238]"
-            />
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: "#64748B" }}>
-              EMAIL / CONTACT (OPTIONAL)
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. john@uni.ac.lk"
-              value={feedbackForm.contact}
-              onChange={(e) => setFeedbackForm({ ...feedbackForm, contact: e.target.value })}
-              className="w-full bg-white border border-[#E2E8F0] rounded-xl px-4 py-3 text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#192238]"
-            />
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: "#64748B" }}>
-              YOUR MESSAGE / FEATURE REQUEST <span className="text-red-500">*</span>
-            </label>
-            <textarea
-              required
-              rows={4}
-              placeholder="Describe your suggestion..."
-              value={feedbackForm.message}
-              onChange={(e) => setFeedbackForm({ ...feedbackForm, message: e.target.value })}
-              className="w-full bg-white border border-[#E2E8F0] rounded-xl px-4 py-3 text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#192238] resize-none"
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="w-full text-white font-medium py-3.5 px-6 rounded-full flex items-center justify-center gap-2 text-sm transition-all active:scale-[0.99] shadow-sm"
-            style={{ backgroundColor: "#192238" }}
-          >
-            <span>✈ Send Suggestion</span>
-          </button>
-        </form>
-      )}
-    </div>
-
-    {/* ---------------- ADMIN-ONLY INBOX ---------------- */}
-    {isAdmin && (
-      <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 text-white shadow-xl space-y-4">
-        <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-          <h3 className="font-semibold text-amber-400 text-base">🛡️ Admin Feedback Inbox</h3>
-          <span className="text-xs bg-slate-800 px-2.5 py-1 rounded-full text-slate-300 font-mono">
-            {suggestions.length} Submissions
-          </span>
-        </div>
-
-        {suggestions.length === 0 ? (
-          <p className="text-slate-400 text-sm italic py-2 text-center">No feedback received yet.</p>
-        ) : (
-          <div className="space-y-3">
-            {suggestions.map((item) => (
-              <div key={item.id} className="bg-slate-800/80 p-4 rounded-2xl border border-slate-700/50 space-y-2 text-sm">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-semibold text-slate-100">{item.name}</p>
-                    <p className="text-xs text-slate-400 font-mono">{item.contact}</p>
-                  </div>
-                  <span className="text-[10px] text-slate-400 bg-slate-700 px-2 py-0.5 rounded">{item.createdAt}</span>
-                </div>
-                <p className="text-slate-300 bg-slate-900/60 p-3 rounded-xl border border-slate-800 leading-relaxed">
-                  "{item.message}"
-                </p>
-                <div className="flex justify-end">
-                  <button
-                    onClick={() => setSuggestions(suggestions.filter((s) => s.id !== item.id))}
-                    className="text-xs text-red-400 hover:text-red-300 transition"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    )}
   </div>
 ) : (
       <>
