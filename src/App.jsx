@@ -37,66 +37,6 @@ import {
   updateProfile
 } from "firebase/auth";
 
-// 1. IMPORT REACT AND USESTATE AT THE VERY TOP OF THE FILE
-import React, { useState } from 'react';
-
-export default function App() {
-  // -------------------------------------------------------------
-  // 2. PASTE PART 1 HERE (Inside your component, before `return`)
-  // -------------------------------------------------------------
-  const [isAdmin, setIsAdmin] = useState(true); // Change to false to hide admin inbox
-  const [feedbackSent, setFeedbackSent] = useState(false);
-  const [feedbackForm, setFeedbackForm] = useState({ name: '', contact: '', message: '' });
-  
-  // Storage for submitted suggestions
-  const [suggestions, setSuggestions] = useState([
-    {
-      id: 1,
-      name: "John Doe",
-      contact: "john@uni.ac.lk",
-      message: "Can you add a dark mode toggle to the timetable section?",
-      createdAt: "2026-08-05"
-    }
-  ]);
-
-  // Function that runs when the user clicks "Send Suggestion"
-  const handleSendFeedback = (e) => {
-    e.preventDefault();
-    if (!feedbackForm.message.trim()) return;
-
-    const newItem = {
-      id: Date.now(),
-      name: feedbackForm.name.trim() || 'Anonymous',
-      contact: feedbackForm.contact.trim() || 'Not provided',
-      message: feedbackForm.message,
-      createdAt: new Date().toISOString().split('T')[0]
-    };
-
-    setSuggestions([newItem, ...suggestions]);
-    setFeedbackForm({ name: '', contact: '', message: '' });
-    setFeedbackSent(true);
-    setTimeout(() => setFeedbackSent(false), 4000);
-  };
-
-  // -------------------------------------------------------------
-  // 3. YOUR EXISTING JSX (RETURN STATEMENT)
-  // -------------------------------------------------------------
-  return (
-    <div>
-      {/* ... your other sections ... */}
-
-      {/* PASTE PART 2 HERE (Replacing your old developer section) */}
-      {section === "developer" ? (
-        <div className="max-w-4xl mx-auto space-y-8 my-8">
-          {/* ... Section UI Code ... */}
-        </div>
-      ) : (
-        /* ... next section ... */
-        null
-      )}
-    </div>
-  );
-}
 
 const ADMIN_EMAIL = "ktchathilmalsencm@gmail.com";
 const INSTAGRAM_URL = "https://www.instagram.com/chathilmkt?igsh=MTgwZGdlbnVwMzQzeA%3D%3D&utm_source=qr";
@@ -2244,6 +2184,62 @@ function BottomNav({ section, setSection, isAdmin }) {
 }
 
 export default function App() {
+  // -------------------------------------------------------------
+  // 2. PASTE PART 1 HERE (Inside your component, before `return`)
+  // -------------------------------------------------------------
+  const [isAdmin, setIsAdmin] = useState(true); // Change to false to hide admin inbox
+  const [feedbackSent, setFeedbackSent] = useState(false);
+  const [feedbackForm, setFeedbackForm] = useState({ name: '', contact: '', message: '' });
+  
+  // Storage for submitted suggestions
+  const [suggestions, setSuggestions] = useState([
+    {
+      id: 1,
+      name: "John Doe",
+      contact: "john@uni.ac.lk",
+      message: "Can you add a dark mode toggle to the timetable section?",
+      createdAt: "2026-08-05"
+    }
+  ]);
+
+  // Function that runs when the user clicks "Send Suggestion"
+  const handleSendFeedback = (e) => {
+    e.preventDefault();
+    if (!feedbackForm.message.trim()) return;
+
+    const newItem = {
+      id: Date.now(),
+      name: feedbackForm.name.trim() || 'Anonymous',
+      contact: feedbackForm.contact.trim() || 'Not provided',
+      message: feedbackForm.message,
+      createdAt: new Date().toISOString().split('T')[0]
+    };
+
+    setSuggestions([newItem, ...suggestions]);
+    setFeedbackForm({ name: '', contact: '', message: '' });
+    setFeedbackSent(true);
+    setTimeout(() => setFeedbackSent(false), 4000);
+  };
+
+  // -------------------------------------------------------------
+  // 3. YOUR EXISTING JSX (RETURN STATEMENT)
+  // -------------------------------------------------------------
+  return (
+    <div>
+      {/* ... your other sections ... */}
+
+      {/* PASTE PART 2 HERE (Replacing your old developer section) */}
+      {section === "developer" ? (
+        <div className="max-w-4xl mx-auto space-y-8 my-8">
+          {/* ... Section UI Code ... */}
+        </div>
+      ) : (
+        /* ... next section ... */
+        null
+      )}
+    </div>
+  );
+
   const [section, setSection] = useState("events"); // "events" | "lostfound"
 
   const [tickets, setTickets] = useState([]);
