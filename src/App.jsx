@@ -2781,7 +2781,15 @@ export default function App() {
               className="w-11 h-11 object-contain flex-shrink-0 drop-shadow-md"
             />
             <div className="min-w-0">
-              <div
+              <div className="flex items-center gap-2.5">
+                <h1 className="text-xl font-bold truncate leading-snug tracking-tight" style={{ lineHeight: 1.2 }}>
+                  <ShinyLogoText sizeClass="text-xl" />
+                </h1>
+                <span className="inline-block text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-md border" style={{ backgroundColor: "rgba(0, 212, 255, 0.15)", borderColor: "#00d4ff", color: "#00d4ff", fontFamily: "'IBM Plex Mono', monospace" }}>
+                  THE CAMPUS NOTICE BOARD
+                </span>
+              </div>
+             <div
   className="flex items-center gap-2 text-xs leading-tight mt-0.5"
   style={{ color: THEME.headerSoft }}
 >
