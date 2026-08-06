@@ -2145,111 +2145,42 @@ function LostFoundSection({ tickets, loading, authUser, isAdmin, onOpenTicket, o
 // Persistent bottom navigation bar, visible at every viewport size, so
 // switching between the Events board and Lost & Found / Facility Issues
 // feels like one app instead of two.
-// =========================
-// Bottom Navigation
-// =========================
-
-function BottomNav({ section, setSection }) {
+function BottomNav({ section, setSection, isAdmin }) {
   const items = [
-    {
-      id: "events",
-      label: "What's On",
-      icon: Home,
-    },
-    {
-      id: "lostfound",
-      label: "Lost & Found",
-      icon: PackageSearch,
-    },
-    {
-      id: "developer",
-      label: "Connect",
-      icon: User,
-    },
+    { id: "events", label: "What's On", icon: Home },
+    { id: "lostfound", label: "Lost & Found", icon: PackageSearch },
+    { id: "developer", label: "Connect", icon: User  },
   ];
-
   return (
     <nav
-      className="
-        fixed
-        bottom-0
-        left-0
-        right-0
-        z-50
-        bg-[#0B0D17]/95
-        backdrop-blur-xl
-        border-t
-        border-white/10
-        shadow-[0_-4px_20px_rgba(0,0,0,0.35)]
-      "
+      className="fixed bottom-0 left-0 right-0 z-40 flex items-stretch"
       style={{
-        paddingBottom: "env(safe-area-inset-bottom)",
+        backgroundColor: THEME.headerBg,
+        borderTop: `1px solid rgba(255,255,255,0.1)`,
+        paddingBottom: "env(safe-area-inset-bottom, 0px)",
+        boxShadow: "0 -4px 20px rgba(0,0,0,0.35)",
       }}
     >
-      <div className="flex h-[72px] items-center justify-around">
-        {items.map((item) => {
-          const Icon = item.icon;
-          const active = section === item.id;
-
-          return (
-            <button
-              key={item.id}
-              onClick={() => setSection(item.id)}
-              className="
-                relative
-                flex
-                flex-1
-                flex-col
-                items-center
-                justify-center
-                gap-1
-                transition-all
-                duration-300
-              "
-            >
-              {/* Active Indicator */}
-              {active && (
-                <span className="absolute top-0 h-1 w-10 rounded-full bg-cyan-400"></span>
-              )}
-
-              {/* Icon */}
-              <Icon
-                size={26}
-                strokeWidth={active ? 2.6 : 2}
-                className={`
-                  transition-all
-                  duration-300
-                  ${
-                    active
-                      ? "text-cyan-400 scale-110"
-                      : "text-slate-400 scale-100"
-                  }
-                `}
-              />
-
-              {/* Label */}
-              <span
-                className={`
-                  text-[12px]
-                  font-medium
-                  transition-colors
-                  duration-300
-                  ${
-                    active
-                      ? "text-cyan-400"
-                      : "text-slate-400"
-                  }
-                `}
-              >
-                {item.label}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      {items.map((it) => {
+        const Icon = it.icon;
+        const active = section === it.id;
+        return (
+          <button
+            key={it.id}
+            onClick={() => setSection(it.id)}
+            aria-pressed={active}
+            className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2"
+            style={{ color: active ? "#00e5ff" : "#94A3B8" }}
+          >
+            <Icon size={19} strokeWidth={active ? 2.4 : 2} />
+            <span className="text-[10px] font-semibold">{it.label}</span>
+          </button>
+        );
+      })}
     </nav>
   );
 }
+
 export default function App() {
   const [section, setSection] = useState("events"); // "events" | "lostfound"
 
