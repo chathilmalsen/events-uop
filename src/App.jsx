@@ -2770,7 +2770,7 @@ export default function App() {
 
           <div className="flex items-center justify-between pt-1.5 text-[10px]" style={{ borderTop: `1px dashed rgba(255,255,255,0.15)`, color: THEME.headerSoft }}>
             <div className="flex items-center gap-1.5 truncate">
-              <span>Chathil Malsen @CM</span>
+              <span>Chathil Malsen</span>
               <span>•</span>
               <a href="https://www.linkedin.com/in/chathilmalsen" target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: "#38bdf8" }}>
                 LinkedIn
