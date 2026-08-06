@@ -2781,25 +2781,77 @@ export default function App() {
               className="w-11 h-11 object-contain flex-shrink-0 drop-shadow-md"
             />
             <div className="min-w-0">
-              <div className="flex items-center gap-2.5">
-                <h1 className="text-xl font-bold truncate leading-snug tracking-tight" style={{ lineHeight: 1.2 }}>
-                  <ShinyLogoText sizeClass="text-xl" />
-                </h1>
-                <span className="inline-block text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-md border" style={{ backgroundColor: "rgba(0, 212, 255, 0.15)", borderColor: "#00d4ff", color: "#00d4ff", fontFamily: "'IBM Plex Mono', monospace" }}>
-                  THE CAMPUS NOTICE BOARD
-                </span>
-              </div>
-              <div className="flex items-center gap-2 text-xs leading-tight mt-0.5" style={{ color: THEME.headerSoft }}>
-                <span>Chathil Malsen</span>
-                <span>•</span>
-                <a href="https://www.linkedin.com/in/chathilmalsen" target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: "#a0daf3" }}>
-                  LinkedIn
-                </a>
-                <span>•</span>
-                <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: "#a0daf3" }}>
-                  Instagram
-                </a>
-              </div>
+              <div
+  className="flex items-center gap-2 text-xs leading-tight mt-0.5"
+  style={{ color: THEME.headerSoft }}
+>
+  <span>Chathil Malsen</span>
+
+  <span>•</span>
+
+  <a
+    href="https://www.linkedin.com/in/chathilmalsen"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="
+      flex
+      items-center
+      gap-1
+
+      hover:underline
+      font-semibold
+
+      transition-all
+      duration-200
+    "
+    style={{ color: "#0A66C2" }}
+  >
+    <FaLinkedin
+      size={14}
+      style={{
+        color: "#0A66C2",
+        filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.2))"
+      }}
+    />
+
+    LinkedIn
+  </a>
+
+
+  <span>•</span>
+
+
+  <a
+    href={INSTAGRAM_URL}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="
+      flex
+      items-center
+      gap-1
+
+      hover:underline
+      font-semibold
+
+      transition-all
+      duration-200
+    "
+    style={{
+      color: "#E4405F"
+    }}
+  >
+    <FaInstagram
+      size={15}
+      style={{
+        color: "#E4405F",
+        filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.2))"
+      }}
+    />
+
+    Instagram
+  </a>
+
+</div>
             </div>
           </div>
 
