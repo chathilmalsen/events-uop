@@ -48,7 +48,7 @@ const FACULTIES = [
   { id: "science",     name: "Faculty of Science",     short: "FOS", color: "#356a9f" },
   { id: "dental",      name: "Faculty of Dental Science", short: "FDS", color: "#356a9f" },
   { id: "agriculture", name: "Faculty of Agriculture", short: "FOA", color: "#356a9f" },
-  { id: "allied health sciences", name: "Faculty of Allied Health", short: "FAD", color: "##356a9f" },
+  { id: "allied health sciences", name: "Faculty of Allied Health", short: "FAD", color: "#356a9f" },
   { id: "veterniary and animal medicine", name: "Faculty of Veterinary Medicine", short: "FVM", color: "#356a9f" },
 ];
 
