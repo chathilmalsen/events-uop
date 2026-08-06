@@ -17,7 +17,7 @@ import {
   Youtube,
   Instagram,
   Facebook,
-  Send,
+  Send as TelegramIcon,
   Music2
 } from "lucide-react";
 
@@ -3013,7 +3013,7 @@ export default function App() {
         {
           name: "Telegram",
           url: "https://t.me/cmtutor",
-          icon: Send
+          icon: TelegramIcon
         },
         {
           name: "Tiktok",
