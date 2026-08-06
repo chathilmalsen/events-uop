@@ -41,15 +41,15 @@ const ADMIN_EMAIL = "ktchathilmalsencm@gmail.com";
 const INSTAGRAM_URL = "https://www.instagram.com/chathilmkt?igsh=MTgwZGdlbnVwMzQzeA%3D%3D&utm_source=qr";
 
 const FACULTIES = [
-  { id: "engineering", name: "Faculty of Engineering", short: "ENG", color: "#2E5C8A" },
-  { id: "medicine",    name: "Faculty of Medicine",    short: "FOM", color: "#B0334D" },
-  { id: "management",  name: "Faculty of Management",  short: "FMS", color: "#B8860B" },
-  { id: "arts",        name: "Faculty of Arts",        short: "ARTS", color: "#7A4FA3" },
-  { id: "science",     name: "Faculty of Science",     short: "SCI", color: "#6B2D3C" },
-  { id: "dental",      name: "Faculty of Dental Science", short: "FDS", color: "#1E8A8A" },
-  { id: "agriculture", name: "Faculty of Agriculture", short: "AGRI", color: "#7A4FA3" },
-  { id: "allied health sciences", name: "Faculty of Allied Health", short: "FAHS", color: "#6B2D3C" },
-  { id: "veterniary and animal medicine", name: "Faculty of Veterinary Medicine", short: "FVMAS", color: "#1E8A8A" },
+  { id: "engineering", name: "Faculty of Engineering", short: "FOE", color: "#356a9f" },
+  { id: "medicine",    name: "Faculty of Medicine",    short: "FOM", color: "#356a9f" },
+  { id: "management",  name: "Faculty of Management",  short: "FMS", color: "#356a9f" },
+  { id: "arts",        name: "Faculty of Arts",        short: "FAS", color: "#356a9f" },
+  { id: "science",     name: "Faculty of Science",     short: "FOS", color: "#356a9f" },
+  { id: "dental",      name: "Faculty of Dental Science", short: "FDS", color: "#356a9f" },
+  { id: "agriculture", name: "Faculty of Agriculture", short: "FOA", color: "#356a9f" },
+  { id: "allied health sciences", name: "Faculty of Allied Health", short: "FAD", color: "##356a9f" },
+  { id: "veterniary and animal medicine", name: "Faculty of Veterinary Medicine", short: "FVM", color: "#356a9f" },
 ];
 
 const CATEGORIES = [
