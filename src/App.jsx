@@ -2164,25 +2164,47 @@ const items = [
 function BottomNav({ section, setSection }) {
   return (
     <div
-      className="fixed bottom-5 left-5 right-5 z-50"
+      className="fixed inset-x-0 bottom-0 z-50 flex justify-center px-5"
       style={{
-        paddingBottom: "env(safe-area-inset-bottom)",
+        paddingBottom: "max(14px, env(safe-area-inset-bottom))",
       }}
     >
       <div
         className="
           relative
           flex
-          h-20
+          items-center
+
+          w-full
+          max-w-md
+          h-[72px]
+
           rounded-full
-          overflow-hidden
 
-          bg-black/25
-          backdrop-blur-3xl
+          bg-[#1b1b1c]/55
+          backdrop-blur-[40px]
+          backdrop-saturate-[180%]
+
           border
-          border-white/10
+          border-white/15
 
-          shadow-[0_10px_35px_rgba(0,0,0,0.45)]
+          shadow-[0_8px_35px_rgba(0,0,0,.45)]
+
+          before:absolute
+          before:inset-0
+          before:rounded-[36px]
+          before:bg-gradient-to-b
+          before:from-white/15
+          before:via-transparent
+          before:to-transparent
+          before:pointer-events-none
+
+          after:absolute
+          after:inset-[1px]
+          after:rounded-full
+          after:border
+          after:border-white/5
+          after:pointer-events-none
         "
       >
         {items.map((item) => {
@@ -2193,15 +2215,22 @@ function BottomNav({ section, setSection }) {
             <button
               key={item.id}
               onClick={() => setSection(item.id)}
-              className="relative flex-1 flex items-center justify-center"
+              className="
+                relative
+                flex-1
+                h-full
+                flex
+                items-center
+                justify-center
+              "
             >
               {active && (
                 <motion.div
                   layoutId="active-pill"
                   transition={{
                     type: "spring",
-                    stiffness: 450,
-                    damping: 35,
+                    stiffness: 480,
+                    damping: 34,
                   }}
                   className="
                     absolute
@@ -2209,34 +2238,39 @@ function BottomNav({ section, setSection }) {
                     right-2
                     top-2
                     bottom-2
+
                     rounded-full
 
-                    bg-white/15
+                    bg-white/14
+
                     border
-                    border-white/10
-                    backdrop-blur-xl
+                    border-white/25
+
+                    backdrop-blur-3xl
+
+                    shadow-[inset_0_1px_1px_rgba(255,255,255,.15)]
                   "
                 />
               )}
 
               <motion.div
                 animate={{
-                  scale: active ? 1.08 : 1,
+                  scale: active ? 1.1 : 1,
                 }}
                 transition={{
                   type: "spring",
                   stiffness: 400,
-                  damping: 25,
+                  damping: 24,
                 }}
                 className="relative z-10"
               >
                 <Icon
-                  size={28}
+                  size={26}
                   strokeWidth={2.3}
                   className={`transition-all duration-300 ${
                     active
                       ? "text-white"
-                      : "text-white/60 hover:text-white/90"
+                      : "text-white/65 hover:text-white"
                   }`}
                 />
               </motion.div>
