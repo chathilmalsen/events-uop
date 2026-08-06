@@ -1,0 +1,13 @@
+{
+  "name": "Campus Connect",
+  "short_name": "CampusConnect",
+  "description": "The campus notice board for every faculty",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAF6EC",
+  "theme_color": "#060A12",
+  "icons": [
+    { "src": "/icon-192.png.jpeg", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png.jpeg", "sizes": "512x512", "type": "image/png" }
+  ]
+}
