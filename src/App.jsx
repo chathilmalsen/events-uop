@@ -2550,6 +2550,8 @@ export default function App() {
         likes: [],
         comments: [],
         createdAt: Date.now(),
+        createdBy: auth.currentUser.uid,
+        createdAt: serverTimestamp()
       });
       setShowAdd(false);
     } catch (error) {
