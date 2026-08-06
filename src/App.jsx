@@ -2946,242 +2946,159 @@ export default function App() {
           onOpenReport={(type) => { setReportDefaultType(type); setShowReportTicket(true); }}
           onSignOut={handleUserSignOut}
         />
-      ) : section === "developer" ? (
-  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-
-  <a
-    href="https://www.linkedin.com/in/chathilmalsen"
-    target="_blank"
-    rel="noreferrer"
-    className="
-      group
-      relative
-      overflow-hidden
-      flex
-      items-center
-      gap-2
-      p-3
-      rounded-xl
-      text-sm
-      font-medium
-
-      transition-all
-      duration-200
-
-      hover:-translate-y-1
-      active:translate-y-1
-      active:scale-95
-
-      shadow-md
-    "
+      
+  ) : section === "developer" ? (
+  <div
+    className="max-w-4xl mx-auto p-6 my-8 rounded-2xl"
     style={{
-      border: `1px solid ${THEME.line}`,
-      color: THEME.ink,
-      background: "rgba(255,255,255,0.12)",
-      backdropFilter: "blur(14px)",
+      backgroundColor: THEME.card,
+      border: `1px solid ${THEME.line}`
     }}
   >
-    <span
-      className="
-        absolute
-        inset-0
-        -translate-x-full
-        group-hover:translate-x-full
-        transition-transform
-        duration-700
-        bg-gradient-to-r
-        from-transparent
-        via-white/60
-        to-transparent
-      "
-    />
-    <span className="relative z-10">LinkedIn</span>
-  </a>
+    <h2
+      style={{
+        fontFamily: "'Fraunces', serif",
+        color: THEME.ink,
+        fontSize: 22,
+        fontWeight: 600
+      }}
+      className="mb-2"
+    >
+      Developer Contacts
+    </h2>
 
+    <p
+      className="text-sm mb-6"
+      style={{ color: THEME.inkSoft }}
+    >
+      Got questions, feedback, or want to collaborate?
+    </p>
 
-  <a
-    href="https://youtube.com/@chathilmalsen?si=r2qH0DQiSDrx3BAa"
-    target="_blank"
-    rel="noreferrer"
-    className="
-      group
-      relative
-      overflow-hidden
-      flex
-      items-center
-      gap-2
-      p-3
-      rounded-xl
-      text-sm
-      font-medium
-      transition-all
-      duration-200
-      hover:-translate-y-1
-      active:translate-y-1
-      active:scale-95
-      shadow-md
-    "
-    style={{
-      border: `1px solid ${THEME.line}`,
-      color: THEME.ink,
-      background: "rgba(255,255,255,0.12)",
-      backdropFilter: "blur(14px)",
-    }}
-  >
-    <span
-      className="
-        absolute
-        inset-0
-        -translate-x-full
-        group-hover:translate-x-full
-        transition-transform
-        duration-700
-        bg-gradient-to-r
-        from-transparent
-        via-white/60
-        to-transparent
-      "
-    />
-    <span className="relative z-10">Youtube</span>
-  </a>
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
+      {[
+        {
+          name: "LinkedIn",
+          url: "https://www.linkedin.com/in/chathilmalsen"
+        },
+        {
+          name: "Youtube",
+          url: "https://youtube.com/@chathilmalsen?si=r2qH0DQiSDrx3BAa"
+        },
+        {
+          name: "Instagram",
+          url: INSTAGRAM_URL
+        },
+        {
+          name: "Facebook",
+          url: "https://www.facebook.com/profile.php?id=61576211142033&mibextid=wwXIfr"
+        },
+        {
+          name: "Telegram",
+          url: "https://t.me/cmtutor"
+        },
+        {
+          name: "Tiktok",
+          url: "https://www.tiktok.com/@chathil.malsen?_r=1&_t=ZS-98cpEQNblx7"
+        }
+      ].map((social) => (
+        <a
+          key={social.name}
+          href={social.url}
+          target="_blank"
+          rel="noreferrer"
 
-  <a
-    href={INSTAGRAM_URL}
-    target="_blank"
-    rel="noreferrer"
-    className="
-      group
-      relative
-      overflow-hidden
-      flex
-      items-center
-      gap-2
-      p-3
-      rounded-xl
-      text-sm
-      font-medium
-      transition-all
-      duration-200
-      hover:-translate-y-1
-      active:translate-y-1
-      active:scale-95
-      shadow-md
-    "
-    style={{
-      border: `1px solid ${THEME.line}`,
-      color: THEME.ink,
-      background: "rgba(255,255,255,0.12)",
-      backdropFilter: "blur(14px)",
-    }}
-  >
-    <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/60 to-transparent" />
-    <span className="relative z-10">Instagram</span>
-  </a>
+          className="
+            group
+            relative
+            overflow-hidden
 
+            flex
+            items-center
+            justify-center
 
-  <a
-    href="https://www.facebook.com/profile.php?id=61576211142033&mibextid=wwXIfr"
-    target="_blank"
-    rel="noreferrer"
-    className="
-      group
-      relative
-      overflow-hidden
-      flex
-      items-center
-      gap-2
-      p-3
-      rounded-xl
-      text-sm
-      font-medium
-      transition-all
-      duration-200
-      hover:-translate-y-1
-      active:translate-y-1
-      active:scale-95
-      shadow-md
-    "
-    style={{
-      border: `1px solid ${THEME.line}`,
-      color: THEME.ink,
-      background: "rgba(255,255,255,0.12)",
-      backdropFilter: "blur(14px)",
-    }}
-  >
-    <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/60 to-transparent" />
-    <span className="relative z-10">Facebook</span>
-  </a>
+            p-3
 
+            rounded-xl
 
-  <a
-    href="https://t.me/cmtutor"
-    target="_blank"
-    rel="noreferrer"
-    className="
-      group
-      relative
-      overflow-hidden
-      flex
-      items-center
-      gap-2
-      p-3
-      rounded-xl
-      text-sm
-      font-medium
-      transition-all
-      duration-200
-      hover:-translate-y-1
-      active:translate-y-1
-      active:scale-95
-      shadow-md
-    "
-    style={{
-      border: `1px solid ${THEME.line}`,
-      color: THEME.ink,
-      background: "rgba(255,255,255,0.12)",
-      backdropFilter: "blur(14px)",
-    }}
-  >
-    <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/60 to-transparent" />
-    <span className="relative z-10">Telegram</span>
-  </a>
+            text-sm
+            font-semibold
 
+            cursor-pointer
 
-  <a
-    href="https://www.tiktok.com/@chathil.malsen?_r=1&_t=ZS-98cpEQNblx7"
-    target="_blank"
-    rel="noreferrer"
-    className="
-      group
-      relative
-      overflow-hidden
-      flex
-      items-center
-      gap-2
-      p-3
-      rounded-xl
-      text-sm
-      font-medium
-      transition-all
-      duration-200
-      hover:-translate-y-1
-      active:translate-y-1
-      active:scale-95
-      shadow-md
-    "
-    style={{
-      border: `1px solid ${THEME.line}`,
-      color: THEME.ink,
-      background: "rgba(255,255,255,0.12)",
-      backdropFilter: "blur(14px)",
-    }}
-  >
-    <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/60 to-transparent" />
-    <span className="relative z-10">Tiktok</span>
-  </a>
+            transition-all
+            duration-150
 
-</div>
+            hover:-translate-y-1
+
+            active:translate-y-[4px]
+            active:scale-95
+
+            shadow-[0_8px_25px_rgba(0,0,0,0.15)]
+          "
+
+          style={{
+            color: THEME.ink,
+
+            background:
+              "linear-gradient(135deg, rgba(255,255,255,0.35), rgba(255,255,255,0.08))",
+
+            backdropFilter:
+              "blur(20px)",
+
+            WebkitBackdropFilter:
+              "blur(20px)",
+
+            border:
+              "1px solid rgba(255,255,255,0.45)",
+
+            boxShadow:
+              "inset 0 1px 3px rgba(255,255,255,0.5), 0 8px 25px rgba(0,0,0,0.15)"
+          }}
+        >
+
+          {/* Moving glass shine */}
+          <span
+            className="
+              absolute
+              inset-0
+
+              bg-gradient-to-r
+              from-transparent
+              via-white/70
+              to-transparent
+
+              -translate-x-[120%]
+
+              group-hover:translate-x-[120%]
+
+              transition-transform
+              duration-700
+            "
+          />
+
+          {/* Top glass reflection */}
+          <span
+            className="
+              absolute
+              inset-x-0
+              top-0
+
+              h-[1px]
+
+              bg-white/70
+            "
+          />
+
+          <span className="relative z-10">
+            {social.name}
+          </span>
+
+        </a>
+      ))}
+
+    </div>
+  </div>
 ) : (
       <>
       {/* Hero Section */}
