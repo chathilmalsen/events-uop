@@ -69,6 +69,7 @@ const CATEGORIES = [
   { id: "cultural",      name: "Cultural",         icon: "🎭", color: "#5B6472" },
   { id: "awards",        name: "Awards",           icon: "🏅", color: "#5B6472" },
   { id: "seminar",       name: "Seminar",          icon: "🧠", color: "#5B6472" },
+];
 
 const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢"];
 
