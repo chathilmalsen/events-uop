@@ -2177,12 +2177,18 @@ function BottomNav({ section, setSection }) {
 
           w-full
           max-w-md
+
+          md:w-[700px]
+          lg:w-[900px]
+          xl:w-[1100px]
+
           h-[72px]
 
           rounded-full
 
           bg-[#1b1b1c]/55
-          backdrop-blur-[40px]
+
+          backdrop-blur-[35px]
           backdrop-saturate-[180%]
 
           border
@@ -2190,23 +2196,26 @@ function BottomNav({ section, setSection }) {
 
           shadow-[0_8px_35px_rgba(0,0,0,.45)]
 
-          before:absolute
-          before:inset-0
-          before:rounded-[36px]
-          before:bg-gradient-to-b
-          before:from-white/15
-          before:via-transparent
-          before:to-transparent
-          before:pointer-events-none
-
-          after:absolute
-          after:inset-[1px]
-          after:rounded-full
-          after:border
-          after:border-white/5
-          after:pointer-events-none
+          overflow-hidden
         "
+
       >
+        {/* Glass shine */}
+        <div
+          className="
+            absolute
+            inset-0
+            rounded-full
+
+            bg-gradient-to-b
+            from-white/15
+            via-transparent
+            to-transparent
+
+            pointer-events-none
+          "
+        />
+
         {items.map((item) => {
           const Icon = item.icon;
           const active = section === item.id;
@@ -2219,9 +2228,12 @@ function BottomNav({ section, setSection }) {
                 relative
                 flex-1
                 h-full
+
                 flex
                 items-center
                 justify-center
+
+                group
               "
             >
               {active && (
@@ -2229,49 +2241,57 @@ function BottomNav({ section, setSection }) {
                   layoutId="active-pill"
                   transition={{
                     type: "spring",
-                    stiffness: 480,
-                    damping: 34,
+                    stiffness: 450,
+                    damping: 30,
                   }}
                   className="
                     absolute
-                    left-2
-                    right-2
-                    top-2
-                    bottom-2
+
+                    inset-x-3
+                    inset-y-2
 
                     rounded-full
 
-                    bg-white/14
+                    bg-white/12
 
                     border
-                    border-white/25
+                    border-white/20
 
-                    backdrop-blur-3xl
+                    backdrop-blur-xl
 
-                    shadow-[inset_0_1px_1px_rgba(255,255,255,.15)]
+                    shadow-[inset_0_1px_2px_rgba(255,255,255,.25)]
                   "
                 />
               )}
 
               <motion.div
                 animate={{
-                  scale: active ? 1.1 : 1,
+                  scale: active ? 1.12 : 1,
+                  y: active ? -1 : 0,
                 }}
                 transition={{
                   type: "spring",
                   stiffness: 400,
-                  damping: 24,
+                  damping: 22,
                 }}
-                className="relative z-10"
+                className="
+                  relative
+                  z-10
+                "
               >
                 <Icon
                   size={26}
-                  strokeWidth={2.3}
-                  className={`transition-all duration-300 ${
-                    active
-                      ? "text-white"
-                      : "text-white/65 hover:text-white"
-                  }`}
+                  strokeWidth={2.2}
+                  className={`
+                    transition-all
+                    duration-300
+
+                    ${
+                      active
+                        ? "text-white"
+                        : "text-white/60 group-hover:text-white"
+                    }
+                  `}
                 />
               </motion.div>
             </button>
