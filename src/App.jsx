@@ -2947,43 +2947,241 @@ export default function App() {
           onSignOut={handleUserSignOut}
         />
       ) : section === "developer" ? (
-  <div className="max-w-4xl mx-auto p-6 my-8 rounded-2xl" style={{ backgroundColor: THEME.card, border: `1px solid ${THEME.line}` }}>
-    <h2 style={{ fontFamily: "'Fraunces', serif", color: THEME.ink, fontSize: 22, fontWeight: 600 }} className="mb-2">Developer Contacts</h2>
-    <p className="text-sm mb-6" style={{ color: THEME.inkSoft }}>Got questions, feedback, or want to collaborate?</p>
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      <a href="https://www.linkedin.com/in/chathilmalsen" target="_blank" rel="noreferrer"
-         className="flex items-center gap-2 p-3 rounded-xl text-sm font-medium"
-         style={{ border: `1px solid ${THEME.line}`, color: THEME.ink }}>
-        LinkedIn
-      </a>
-      <a href= "https://youtube.com/@chathilmalsen?si=r2qH0DQiSDrx3BAa" target="_blank" rel="noreferrer"
-         className="flex items-center gap-2 p-3 rounded-xl text-sm font-medium"
-         style={{ border: `1px solid ${THEME.line}`, color: THEME.ink }}>
-        Youtube
-      </a>
-      <a href={INSTAGRAM_URL} target="_blank" rel="noreferrer"
-         className="flex items-center gap-2 p-3 rounded-xl text-sm font-medium"
-         style={{ border: `1px solid ${THEME.line}`, color: THEME.ink }}>
-        Instagram
-      </a>
-       <a href= "https://www.facebook.com/profile.php?id=61576211142033&mibextid=wwXIfr" target="_blank" rel="noreferrer"
-         className="flex items-center gap-2 p-3 rounded-xl text-sm font-medium"
-         style={{ border: `1px solid ${THEME.line}`, color: THEME.ink }}>
-        Facebook
-      </a>
-       <a href= "https://t.me/cmtutor" target="_blank" rel="noreferrer"
-         className="flex items-center gap-2 p-3 rounded-xl text-sm font-medium"
-         style={{ border: `1px solid ${THEME.line}`, color: THEME.ink }}>
-        Telegram
-      </a>
-       <a href= "https://www.tiktok.com/@chathil.malsen?_r=1&_t=ZS-98cpEQNblx7" target="_blank" rel="noreferrer"
-         className="flex items-center gap-2 p-3 rounded-xl text-sm font-medium"
-         style={{ border: `1px solid ${THEME.line}`, color: THEME.ink }}>
-        Tiktok
-      </a>
-      {/* add more rows the same way — email, etc */}
-    </div>
-  </div>
+  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+  <a
+    href="https://www.linkedin.com/in/chathilmalsen"
+    target="_blank"
+    rel="noreferrer"
+    className="
+      group
+      relative
+      overflow-hidden
+      flex
+      items-center
+      gap-2
+      p-3
+      rounded-xl
+      text-sm
+      font-medium
+
+      transition-all
+      duration-200
+
+      hover:-translate-y-1
+      active:translate-y-1
+      active:scale-95
+
+      shadow-md
+    "
+    style={{
+      border: `1px solid ${THEME.line}`,
+      color: THEME.ink,
+      background: "rgba(255,255,255,0.12)",
+      backdropFilter: "blur(14px)",
+    }}
+  >
+    <span
+      className="
+        absolute
+        inset-0
+        -translate-x-full
+        group-hover:translate-x-full
+        transition-transform
+        duration-700
+        bg-gradient-to-r
+        from-transparent
+        via-white/60
+        to-transparent
+      "
+    />
+    <span className="relative z-10">LinkedIn</span>
+  </a>
+
+
+  <a
+    href="https://youtube.com/@chathilmalsen?si=r2qH0DQiSDrx3BAa"
+    target="_blank"
+    rel="noreferrer"
+    className="
+      group
+      relative
+      overflow-hidden
+      flex
+      items-center
+      gap-2
+      p-3
+      rounded-xl
+      text-sm
+      font-medium
+      transition-all
+      duration-200
+      hover:-translate-y-1
+      active:translate-y-1
+      active:scale-95
+      shadow-md
+    "
+    style={{
+      border: `1px solid ${THEME.line}`,
+      color: THEME.ink,
+      background: "rgba(255,255,255,0.12)",
+      backdropFilter: "blur(14px)",
+    }}
+  >
+    <span
+      className="
+        absolute
+        inset-0
+        -translate-x-full
+        group-hover:translate-x-full
+        transition-transform
+        duration-700
+        bg-gradient-to-r
+        from-transparent
+        via-white/60
+        to-transparent
+      "
+    />
+    <span className="relative z-10">Youtube</span>
+  </a>
+
+
+  <a
+    href={INSTAGRAM_URL}
+    target="_blank"
+    rel="noreferrer"
+    className="
+      group
+      relative
+      overflow-hidden
+      flex
+      items-center
+      gap-2
+      p-3
+      rounded-xl
+      text-sm
+      font-medium
+      transition-all
+      duration-200
+      hover:-translate-y-1
+      active:translate-y-1
+      active:scale-95
+      shadow-md
+    "
+    style={{
+      border: `1px solid ${THEME.line}`,
+      color: THEME.ink,
+      background: "rgba(255,255,255,0.12)",
+      backdropFilter: "blur(14px)",
+    }}
+  >
+    <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/60 to-transparent" />
+    <span className="relative z-10">Instagram</span>
+  </a>
+
+
+  <a
+    href="https://www.facebook.com/profile.php?id=61576211142033&mibextid=wwXIfr"
+    target="_blank"
+    rel="noreferrer"
+    className="
+      group
+      relative
+      overflow-hidden
+      flex
+      items-center
+      gap-2
+      p-3
+      rounded-xl
+      text-sm
+      font-medium
+      transition-all
+      duration-200
+      hover:-translate-y-1
+      active:translate-y-1
+      active:scale-95
+      shadow-md
+    "
+    style={{
+      border: `1px solid ${THEME.line}`,
+      color: THEME.ink,
+      background: "rgba(255,255,255,0.12)",
+      backdropFilter: "blur(14px)",
+    }}
+  >
+    <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/60 to-transparent" />
+    <span className="relative z-10">Facebook</span>
+  </a>
+
+
+  <a
+    href="https://t.me/cmtutor"
+    target="_blank"
+    rel="noreferrer"
+    className="
+      group
+      relative
+      overflow-hidden
+      flex
+      items-center
+      gap-2
+      p-3
+      rounded-xl
+      text-sm
+      font-medium
+      transition-all
+      duration-200
+      hover:-translate-y-1
+      active:translate-y-1
+      active:scale-95
+      shadow-md
+    "
+    style={{
+      border: `1px solid ${THEME.line}`,
+      color: THEME.ink,
+      background: "rgba(255,255,255,0.12)",
+      backdropFilter: "blur(14px)",
+    }}
+  >
+    <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/60 to-transparent" />
+    <span className="relative z-10">Telegram</span>
+  </a>
+
+
+  <a
+    href="https://www.tiktok.com/@chathil.malsen?_r=1&_t=ZS-98cpEQNblx7"
+    target="_blank"
+    rel="noreferrer"
+    className="
+      group
+      relative
+      overflow-hidden
+      flex
+      items-center
+      gap-2
+      p-3
+      rounded-xl
+      text-sm
+      font-medium
+      transition-all
+      duration-200
+      hover:-translate-y-1
+      active:translate-y-1
+      active:scale-95
+      shadow-md
+    "
+    style={{
+      border: `1px solid ${THEME.line}`,
+      color: THEME.ink,
+      background: "rgba(255,255,255,0.12)",
+      backdropFilter: "blur(14px)",
+    }}
+  >
+    <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/60 to-transparent" />
+    <span className="relative z-10">Tiktok</span>
+  </a>
+
+</div>
 ) : (
       <>
       {/* Hero Section */}
