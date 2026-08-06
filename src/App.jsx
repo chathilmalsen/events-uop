@@ -2164,28 +2164,26 @@ const items = [
 function BottomNav({ section, setSection }) {
   return (
     <div
-      className="
-      fixed
-      bottom-5
-      left-5
-      right-5
-      z-50
-    "
+      className="fixed bottom-5 left-5 right-5 z-50"
       style={{
         paddingBottom: "env(safe-area-inset-bottom)",
       }}
     >
       <div
         className="
-        relative
-        flex
-        h-20
-        rounded-full
-        bg-[#11141B]
-        border
-        border-white/10
-        shadow-2xl
-      "
+          relative
+          flex
+          h-20
+          rounded-full
+          overflow-hidden
+
+          bg-black/25
+          backdrop-blur-3xl
+          border
+          border-white/10
+
+          shadow-[0_10px_35px_rgba(0,0,0,0.45)]
+        "
       >
         {items.map((item) => {
           const Icon = item.icon;
@@ -2207,20 +2205,41 @@ function BottomNav({ section, setSection }) {
                   }}
                   className="
                     absolute
-                    inset-2
+                    left-2
+                    right-2
+                    top-2
+                    bottom-2
                     rounded-full
-                    bg-white/20
+
+                    bg-white/12
+                    border
+                    border-white/15
+                    backdrop-blur-xl
                   "
                 />
               )}
 
-              <Icon
-                size={30}
-                strokeWidth={2.4}
-                className={`relative z-10 transition-colors duration-300 ${
-                  active ? "text-white" : "text-gray-400"
-                }`}
-              />
+              <motion.div
+                animate={{
+                  scale: active ? 1.08 : 1,
+                }}
+                transition={{
+                  type: "spring",
+                  stiffness: 400,
+                  damping: 25,
+                }}
+                className="relative z-10"
+              >
+                <Icon
+                  size={28}
+                  strokeWidth={2.3}
+                  className={`transition-all duration-300 ${
+                    active
+                      ? "text-white"
+                      : "text-white/60 hover:text-white/90"
+                  }`}
+                />
+              </motion.div>
             </button>
           );
         })}
