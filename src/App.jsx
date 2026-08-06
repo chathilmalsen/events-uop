@@ -53,24 +53,22 @@ const FACULTIES = [
 ];
 
 const CATEGORIES = [
-  { id: "academic",      name: "Academic",         icon: "🎓", color: "#2E5C8A" },
-  { id: "sports",        name: "Sports",           icon: "⚽", color: "#1E8A5C" },
-  { id: "musical",       name: "Musical",          icon: "🎵", color: "#B8860B" },
-  { id: "workshop",      name: "Workshop",         icon: "💻", color: "#7A4FA3" },
-  { id: "competition",   name: "Competition",      icon: "🏆", color: "#B0334D" },
+  { id: "musical",       name: "Musical",          icon: "🎵", color: "#5B6472" },
   { id: "notice",        name: "Notice",           icon: "📢", color: "#5B6472" },
-  { id: "social",        name: "Social",           icon: "🎉", color: "#C9A227" },
-  { id: "charity",       name: "Charity",          icon: "❤️", color: "#B0334D" },
-  { id: "research",      name: "Research",         icon: "🔬", color: "#1E8A8A" },
-  { id: "environmental", name: "Environmental",    icon: "🌱", color: "#3D8B3D" },
-  { id: "volunteer",     name: "Volunteer",        icon: "🤝", color: "#6B2D3C" },
-  { id: "career",        name: "Career Fair",      icon: "💼", color: "#2E5C8A" },
-  { id: "industrial",    name: "Industrial Visit", icon: "🚌", color: "#A9820F" },
-  { id: "cultural",      name: "Cultural",         icon: "🎭", color: "#7A4FA3" },
-  { id: "awards",        name: "Awards",           icon: "🏅", color: "#C9A227" },
-  { id: "seminar",       name: "Seminar",          icon: "🧠", color: "#2E5C8A" },
-  { id: "exam",          name: "Exam & Academic",  icon: "📚", color: "#5B6472" },
-];
+  { id: "social",        name: "Social",           icon: "🎉", color: "#5B6472" },
+  { id: "career",        name: "Career Fair",      icon: "💼", color: "#5B6472" },
+  { id: "industrial",    name: "Industrial Visit", icon: "🚌", color: "#5B6472" },
+  { id: "academic",      name: "Academic",         icon: "🎓", color: "#5B6472" },
+  { id: "sports",        name: "Sports",           icon: "⚽", color: "#5B6472" },
+  { id: "workshop",      name: "Workshop",         icon: "💻", color: "#5B6472" },
+  { id: "competition",   name: "Competition",      icon: "🏆", color: "#5B6472" },
+  { id: "charity",       name: "Charity",          icon: "❤️", color: "#5B6472" },
+  { id: "research",      name: "Research",         icon: "🔬", color: "#5B6472" },
+  { id: "environmental", name: "Environmental",    icon: "🌱", color: "#5B6472" },
+  { id: "volunteer",     name: "Volunteer",        icon: "🤝", color: "#5B6472" },
+  { id: "cultural",      name: "Cultural",         icon: "🎭", color: "#5B6472" },
+  { id: "awards",        name: "Awards",           icon: "🏅", color: "#5B6472" },
+  { id: "seminar",       name: "Seminar",          icon: "🧠", color: "#5B6472" },
 
 const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢"];
 
