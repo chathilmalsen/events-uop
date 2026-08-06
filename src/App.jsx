@@ -2085,13 +2085,13 @@ function LostFoundSection({ tickets, loading, authUser, isAdmin, onOpenTicket, o
       </p>
 
       <div className="flex flex-wrap gap-2 mt-5">
-        <button onClick={() => startReport("lost")} className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold" style={{ backgroundColor: "#B0334D", color: "#fff" }}>
+        <button onClick={() => startReport("lost")} className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold" style={{ backgroundColor: "#000000", color: "#fff" }}>
           <PackageSearch size={15} /> Report Lost Item
         </button>
-        <button onClick={() => startReport("found")} className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold" style={{ backgroundColor: "#1E8A5C", color: "#fff" }}>
+        <button onClick={() => startReport("found")} className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold" style={{ backgroundColor: "#000000", color: "#fff" }}>
           <PackageSearch size={15} /> Report Found Item
         </button>
-        <button onClick={() => startReport("facility")} className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold" style={{ backgroundColor: "#A9820F", color: "#fff" }}>
+        <button onClick={() => startReport("facility")} className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold" style={{ backgroundColor: "#000000", color: "#fff" }}>
           <Wrench size={15} /> Report Facility Issue
         </button>
       </div>
