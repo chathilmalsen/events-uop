@@ -7,7 +7,7 @@ import {
   ExternalLink, Sun, Moon, Monitor, Copy, Check, Reply, Bell,
   SlidersHorizontal, Ticket, Globe, MapPinned, Timer, QrCode,
   PackageSearch, Wrench, ClipboardList, LogIn, UserPlus, Send,
-  CheckCircle2, CircleDot, Loader2, Home, Share as ShareIcon, PlusSquare
+  CheckCircle2, CircleDot, Loader2, Home
 } from "lucide-react";
 
 // --- FIREBASE IMPORTS ---
@@ -266,27 +266,6 @@ function shareUrlFor(ev) {
 function isLikelyUrl(str) {
   if (!str) return true; // empty is allowed, it's optional
   return /^https?:\/\/.+/i.test(str.trim());
-}
-
-// --- Install-to-home-screen helpers -----------------------------------
-// `beforeinstallprompt` only fires on Chromium-based browsers (Chrome,
-// Edge, Samsung Internet, etc). iOS Safari never fires it — installing
-// there is a manual "Share -> Add to Home Screen" action, so we detect
-// the platform and show instructions instead of a native prompt.
-function isIosDevice() {
-  if (typeof navigator === "undefined") return false;
-  const ua = navigator.userAgent || navigator.vendor || "";
-  const iOSDevice = /iPad|iPhone|iPod/.test(ua);
-  // iPadOS 13+ reports as "MacIntel" but has touch support — catch that too.
-  const iPadOS13 = navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
-  return iOSDevice || iPadOS13;
-}
-function isStandaloneDisplay() {
-  if (typeof window === "undefined") return false;
-  const mql = window.matchMedia && window.matchMedia("(display-mode: standalone)").matches;
-  // iOS Safari exposes this non-standard flag on `navigator` instead.
-  const iosStandalone = window.navigator && window.navigator.standalone;
-  return Boolean(mql || iosStandalone);
 }
 
 // --- Duplicate-event detection helpers -------------------------------------
@@ -1726,85 +1705,6 @@ function ShinyLogoText({ sizeClass }) {
   );
 }
 
-// --- Reusable "Install App" control -------------------------------------
-// One component used everywhere the install action needs to appear
-// (desktop header, mobile header). It renders three different states:
-//  1. Already installed / running standalone -> renders nothing.
-//  2. A native `beforeinstallprompt` is available (Chrome/Edge/Android)
-//     -> a button that triggers the real install prompt.
-//  3. iOS Safari (which never fires beforeinstallprompt) -> a button that
-//     opens a small instructions popover for the manual Share -> Add to
-//     Home Screen flow.
-// If neither condition is met (e.g. desktop Safari/Firefox without PWA
-// install support, or it's already installed), nothing is rendered.
-function InstallAppButton({ deferredPrompt, onInstall, compact }) {
-  const [iosTipOpen, setIosTipOpen] = useState(false);
-  const [installed, setInstalled] = useState(isStandaloneDisplay());
-  const iosDevice = isIosDevice();
-
-  useEffect(() => {
-    const check = () => setInstalled(isStandaloneDisplay());
-    window.addEventListener("appinstalled", check);
-    return () => window.removeEventListener("appinstalled", check);
-  }, []);
-
-  if (installed) return null;
-  if (!deferredPrompt && !iosDevice) return null; // no install path available on this browser
-
-  const label = compact ? "Install" : "Install App";
-
-  if (deferredPrompt) {
-    return (
-      <button
-        onClick={onInstall}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors hover:bg-white/10"
-        style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", color: THEME.headerText }}
-      >
-        <Download size={14} color={THEME.headerText} />
-        <span>{label}</span>
-      </button>
-    );
-  }
-
-  // iOS fallback: show manual instructions instead of a native prompt.
-  return (
-    <div className="relative">
-      <button
-        onClick={() => setIosTipOpen((v) => !v)}
-        aria-pressed={iosTipOpen}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors hover:bg-white/10"
-        style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", color: THEME.headerText }}
-      >
-        <Download size={14} color={THEME.headerText} />
-        <span>{label}</span>
-      </button>
-      {iosTipOpen && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setIosTipOpen(false)} />
-          <div
-            className="absolute right-0 top-full mt-2 z-50 rounded-2xl p-4 w-64"
-            style={{ backgroundColor: THEME.card, border: `1px solid ${THEME.line}`, boxShadow: "0 12px 32px rgba(0,0,0,0.3)" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <p className="text-xs font-semibold mb-2" style={{ color: THEME.ink }}>Add to Home Screen</p>
-            <ol className="text-xs space-y-1.5" style={{ color: THEME.inkSoft }}>
-              <li className="flex items-center gap-1.5">
-                <ShareIcon size={13} color={THEME.goldDeep} /> Tap the Share icon in Safari
-              </li>
-              <li className="flex items-center gap-1.5">
-                <PlusSquare size={13} color={THEME.goldDeep} /> Choose "Add to Home Screen"
-              </li>
-              <li className="flex items-center gap-1.5">
-                <Check size={13} color={THEME.goldDeep} /> Tap "Add" to confirm
-              </li>
-            </ol>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
 // Regular-user sign in / sign up, using the SAME Firebase Auth project as
 // the admin login above — this just isn't restricted to ADMIN_EMAIL. Any
 // student can create an account here to file or track Lost & Found /
@@ -2286,6 +2186,7 @@ export default function App() {
   const [section, setSection] = useState("events"); // "events" | "lostfound"
 
   const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [showInstallBtn, setShowInstallBtn] = useState(false);
 
   const [tickets, setTickets] = useState([]);
   const [ticketsLoading, setTicketsLoading] = useState(true);
@@ -2330,24 +2231,20 @@ export default function App() {
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  // Capture the browser's native "Add to Home Screen" prompt as soon as
-  // it's available (Chrome/Edge/Android). We stash the event so the
-  // InstallAppButton can trigger it on demand from any header, instead of
-  // letting the browser show its own default mini-infobar.
   useEffect(() => {
-    const handler = (e) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-    window.addEventListener("beforeinstallprompt", handler);
+  const handler = (e) => {
+    e.preventDefault();
+    setDeferredPrompt(e);
+    setShowInstallBtn(true);
+  };
+  window.addEventListener("beforeinstallprompt", handler);
 
-    const onInstalled = () => setDeferredPrompt(null);
-    window.addEventListener("appinstalled", onInstalled);
+  window.addEventListener("appinstalled", () => {
+    setShowInstallBtn(false);
+    setDeferredPrompt(null);
+  });
 
-    return () => {
-      window.removeEventListener("beforeinstallprompt", handler);
-      window.removeEventListener("appinstalled", onInstalled);
-    };
+  return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
   useEffect(() => {
@@ -2373,17 +2270,12 @@ export default function App() {
   };
 
   const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    try {
-      const { outcome } = await deferredPrompt.userChoice;
-      console.log(`Install prompt outcome: ${outcome}`);
-    } catch (error) {
-      console.error("Error awaiting install prompt outcome:", error);
-    }
-    // The browser only allows a captured prompt to be used once — clear it
-    // either way so the button correctly disappears / resets.
-    setDeferredPrompt(null);
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  console.log(`Install prompt outcome: ${outcome}`);
+  setDeferredPrompt(null);
+  setShowInstallBtn(false);
   };
 
   const toggleBookmark = (id) => {
@@ -2814,7 +2706,16 @@ export default function App() {
               </button>
             )}
 
-            <InstallAppButton deferredPrompt={deferredPrompt} onInstall={handleInstallClick} />
+            {showInstallBtn && (
+            <button
+              onClick={handleInstallClick}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors hover:bg-white/10"
+              style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", color: THEME.headerText }}
+             >
+             <Download size={14} color={THEME.headerText} />
+             <span>Install App</span>
+             </button>
+             )}
 
             <button
               onClick={() => setShowAdd(true)}
@@ -2846,6 +2747,17 @@ export default function App() {
               </div>
             </div>
 
+            {showInstallBtn && (
+          <button
+            onClick={handleInstallClick}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors hover:bg-white/10"
+            style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", color: THEME.headerText }}
+          >
+          <Download size={14} color={THEME.headerText} />
+          <span>Install App</span>
+          </button>
+        )}
+
             <button
               onClick={() => setShowAdd(true)}
               className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold transition-transform active:scale-95 shadow-sm flex-shrink-0"
@@ -2856,7 +2768,7 @@ export default function App() {
             </button>
           </div>
 
-          <div className="flex items-center justify-between pt-1.5 text-[10px] flex-wrap gap-y-2" style={{ borderTop: `1px dashed rgba(255,255,255,0.15)`, color: THEME.headerSoft }}>
+          <div className="flex items-center justify-between pt-1.5 text-[10px]" style={{ borderTop: `1px dashed rgba(255,255,255,0.15)`, color: THEME.headerSoft }}>
             <div className="flex items-center gap-1.5 truncate">
               <span>By Chathil Malsen</span>
               <span>•</span>
@@ -2870,7 +2782,6 @@ export default function App() {
             </div>
 
             <div className="flex items-center gap-1.5 flex-shrink-0">
-              <InstallAppButton deferredPrompt={deferredPrompt} onInstall={handleInstallClick} compact />
               <ThemeToggle mode={themeMode} setMode={setThemeMode} />
               <button
                 onClick={() => setShowUserModal(true)}
