@@ -74,14 +74,14 @@ const CATEGORIES = [
 const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢"];
 
 const TICKET_TYPES = [
-  { id: "lost", name: "Lost Item", icon: PackageSearch, color: "#B0334D" },
-  { id: "found", name: "Found Item", icon: PackageSearch, color: "#1E8A5C" },
-  { id: "facility", name: "Facility / Equipment Issue", icon: Wrench, color: "#A9820F" },
+  { id: "lost", name: "Lost Item", icon: PackageSearch, color: "#6ba5ce" },
+  { id: "found", name: "Found Item", icon: PackageSearch, color: "#6ba5ce" },
+  { id: "facility", name: "Facility / Equipment Issue", icon: Wrench, color: "#6ba5ce" },
 ];
 const TICKET_STATUSES = [
-  { id: "open", name: "Open", icon: CircleDot, color: "#B0334D" },
-  { id: "in_progress", name: "In Progress", icon: Loader2, color: "#A9820F" },
-  { id: "resolved", name: "Resolved", icon: CheckCircle2, color: "#1E8A5C" },
+  { id: "open", name: "Open", icon: CircleDot, color: "#656b75" },
+  { id: "in_progress", name: "In Progress", icon: Loader2, color: "#656b75" },
+  { id: "resolved", name: "Resolved", icon: CheckCircle2, color: "#656b75" },
 ];
 const ticketTypeOf = (id) => TICKET_TYPES.find((t) => t.id === id) || TICKET_TYPES[0];
 const ticketStatusOf = (id) => TICKET_STATUSES.find((s) => s.id === id) || TICKET_STATUSES[0];
