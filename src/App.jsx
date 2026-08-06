@@ -3217,13 +3217,14 @@ export default function App() {
   {/* Suggestion & Collaboration Forum */}
 
   <div
-    className="
-      max-w-4xl
-      mx-auto
-      p-6
-      my-8
-      rounded-2xl
-    "
+  className="
+    max-w-2xl
+    mx-auto
+    p-6
+    mt-2
+    mb-36
+    rounded-2xl
+  "
     style={{
       backgroundColor: THEME.card,
       border: `1px solid ${THEME.line}`
