@@ -2211,9 +2211,9 @@ function BottomNav({ section, setSection }) {
                     bottom-2
                     rounded-full
 
-                    bg-white/12
+                    bg-white/15
                     border
-                    border-white/15
+                    border-white/10
                     backdrop-blur-xl
                   "
                 />
