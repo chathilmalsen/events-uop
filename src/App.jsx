@@ -2761,16 +2761,16 @@ export default function App() {
             <button
               onClick={() => setShowAdd(true)}
               className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold transition-transform active:scale-95 shadow-sm flex-shrink-0"
-              style={{ backgroundColor: "#00e5ff", color: "#05080e" }}
+              style={{backgroundColor: "#001F54",color: "#ffffff",borderColor: "#001F54"}}
             >
               <CalendarPlus size={14} />
-              <span>+</span>
+              <span>POST</span>
             </button>
           </div>
 
           <div className="flex items-center justify-between pt-1.5 text-[10px]" style={{ borderTop: `1px dashed rgba(255,255,255,0.15)`, color: THEME.headerSoft }}>
             <div className="flex items-center gap-1.5 truncate">
-              <span>By Chathil Malsen</span>
+              <span>Chathil Malsen @CM</span>
               <span>•</span>
               <a href="https://www.linkedin.com/in/chathilmalsen" target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: "#38bdf8" }}>
                 LinkedIn
