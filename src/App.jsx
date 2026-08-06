@@ -2164,20 +2164,9 @@ const items = [
 function BottomNav({ section, setSection }) {
   return (
     <div
-      className="
-        fixed
-        inset-x-0
-        bottom-0
-        z-50
-
-        flex
-        justify-center
-
-        px-4
-        md:px-8
-      "
+      className="fixed inset-x-0 bottom-0 z-50 flex justify-center px-5"
       style={{
-        paddingBottom: "max(16px, env(safe-area-inset-bottom))",
+        paddingBottom: "max(14px, env(safe-area-inset-bottom))",
       }}
     >
       <div
@@ -2189,55 +2178,39 @@ function BottomNav({ section, setSection }) {
           w-full
           max-w-md
 
-          md:w-[1100px]
-          lg:w-[1500px]
-          xl:w-[1800px]
+          md:w-[700px]
+          lg:w-[900px]
+          xl:w-[1100px]
 
-          h-[74px]
-          md:h-[82px]
+          h-[72px]
 
           rounded-full
 
-          bg-white/[0.08]
+          bg-[#1b1b1c]/55
 
-          backdrop-blur-[45px]
-          backdrop-saturate-[200%]
+          backdrop-blur-[35px]
+          backdrop-saturate-[180%]
 
           border
-          border-white/[0.18]
+          border-white/15
 
-          shadow-[0_20px_60px_rgba(0,0,0,0.45)]
+          shadow-[0_8px_35px_rgba(0,0,0,.45)]
 
           overflow-hidden
-
-          before:absolute
-          before:inset-0
-          before:bg-gradient-to-b
-          before:from-white/[0.22]
-          before:via-white/[0.05]
-          before:to-transparent
-          before:pointer-events-none
-
-          after:absolute
-          after:inset-[1px]
-          after:rounded-full
-          after:border
-          after:border-white/[0.08]
-          after:pointer-events-none
         "
+
       >
-        {/* Extra glass reflection */}
+        {/* Glass shine */}
         <div
           className="
             absolute
             inset-0
+            rounded-full
 
-            bg-gradient-to-r
-            from-transparent
-            via-white/[0.08]
+            bg-gradient-to-b
+            from-white/15
+            via-transparent
             to-transparent
-
-            opacity-60
 
             pointer-events-none
           "
@@ -2253,7 +2226,6 @@ function BottomNav({ section, setSection }) {
               onClick={() => setSection(item.id)}
               className="
                 relative
-
                 flex-1
                 h-full
 
@@ -2269,38 +2241,38 @@ function BottomNav({ section, setSection }) {
                   layoutId="active-pill"
                   transition={{
                     type: "spring",
-                    stiffness: 420,
-                    damping: 32,
+                    stiffness: 450,
+                    damping: 30,
                   }}
                   className="
                     absolute
 
-                    inset-x-4
+                    inset-x-3
                     inset-y-2
 
                     rounded-full
 
-                    bg-white/[0.16]
-
-                    backdrop-blur-3xl
+                    bg-white/12
 
                     border
-                    border-white/[0.25]
+                    border-white/20
 
-                    shadow-[inset_0_1px_3px_rgba(255,255,255,0.35)]
+                    backdrop-blur-xl
+
+                    shadow-[inset_0_1px_2px_rgba(255,255,255,.25)]
                   "
                 />
               )}
 
               <motion.div
                 animate={{
-                  scale: active ? 1.15 : 1,
-                  y: active ? -2 : 0,
+                  scale: active ? 1.12 : 1,
+                  y: active ? -1 : 0,
                 }}
                 transition={{
                   type: "spring",
-                  stiffness: 450,
-                  damping: 24,
+                  stiffness: 400,
+                  damping: 22,
                 }}
                 className="
                   relative
@@ -2308,16 +2280,16 @@ function BottomNav({ section, setSection }) {
                 "
               >
                 <Icon
-                  size={28}
-                  strokeWidth={2.1}
+                  size={26}
+                  strokeWidth={2.2}
                   className={`
                     transition-all
                     duration-300
 
                     ${
                       active
-                        ? "text-white drop-shadow-[0_0_8px_rgba(255,255,255,.5)]"
-                        : "text-white/55 group-hover:text-white/90"
+                        ? "text-white"
+                        : "text-white/60 group-hover:text-white"
                     }
                   `}
                 />
