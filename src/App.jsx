@@ -10,6 +10,13 @@ import {
   CheckCircle2, CircleDot, Loader2, Home
 } from "lucide-react";
 
+import {
+  RiHome5Fill,
+  RiHome5Line,
+  RiUser3Fill,
+  RiUser3Line,
+} from "react-icons/ri";
+
 // --- FIREBASE IMPORTS ---
 import { db, auth } from "./firebase";
 // Posters/photos are compressed client-side and stored as base64 directly in
@@ -2145,39 +2152,80 @@ function LostFoundSection({ tickets, loading, authUser, isAdmin, onOpenTicket, o
 // Persistent bottom navigation bar, visible at every viewport size, so
 // switching between the Events board and Lost & Found / Facility Issues
 // feels like one app instead of two.
-function BottomNav({ section, setSection, isAdmin }) {
-  const items = [
-    { id: "events", label: "What's On", icon: Home },
-    { id: "lostfound", label: "Lost & Found", icon: PackageSearch },
-    { id: "developer", label: "Connect", icon: User  },
-  ];
+import { motion } from "framer-motion";
+import { Home, PackageSearch, User } from "lucide-react";
+
+const items = [
+  { id: "events", icon: Home },
+  { id: "lostfound", icon: PackageSearch },
+  { id: "developer", icon: User },
+];
+
+function BottomNav({ section, setSection }) {
   return (
-    <nav
-      className="fixed bottom-0 left-0 right-0 z-40 flex items-stretch"
+    <div
+      className="
+      fixed
+      bottom-5
+      left-5
+      right-5
+      z-50
+    "
       style={{
-        backgroundColor: THEME.headerBg,
-        borderTop: `1px solid rgba(255,255,255,0.1)`,
-        paddingBottom: "env(safe-area-inset-bottom, 0px)",
-        boxShadow: "0 -4px 20px rgba(0,0,0,0.35)",
+        paddingBottom: "env(safe-area-inset-bottom)",
       }}
     >
-      {items.map((it) => {
-        const Icon = it.icon;
-        const active = section === it.id;
-        return (
-          <button
-            key={it.id}
-            onClick={() => setSection(it.id)}
-            aria-pressed={active}
-            className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2"
-            style={{ color: active ? "#00e5ff" : "#94A3B8" }}
-          >
-            <Icon size={19} strokeWidth={active ? 2.4 : 2} />
-            <span className="text-[10px] font-semibold">{it.label}</span>
-          </button>
-        );
-      })}
-    </nav>
+      <div
+        className="
+        relative
+        flex
+        h-20
+        rounded-full
+        bg-[#11141B]
+        border
+        border-white/10
+        shadow-2xl
+      "
+      >
+        {items.map((item) => {
+          const Icon = item.icon;
+          const active = section === item.id;
+
+          return (
+            <button
+              key={item.id}
+              onClick={() => setSection(item.id)}
+              className="relative flex-1 flex items-center justify-center"
+            >
+              {active && (
+                <motion.div
+                  layoutId="active-pill"
+                  transition={{
+                    type: "spring",
+                    stiffness: 450,
+                    damping: 35,
+                  }}
+                  className="
+                    absolute
+                    inset-2
+                    rounded-full
+                    bg-white/20
+                  "
+                />
+              )}
+
+              <Icon
+                size={30}
+                strokeWidth={2.4}
+                className={`relative z-10 transition-colors duration-300 ${
+                  active ? "text-white" : "text-gray-400"
+                }`}
+              />
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -2773,7 +2821,7 @@ export default function App() {
                 LinkedIn
               </a>
               <span>•</span>
-              <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: "#a0daf3" }}>
+              <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: "#38bdf8" }}>
                 Instagram
               </a>
             </div>
