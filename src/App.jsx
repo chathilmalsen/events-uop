@@ -2876,7 +2876,8 @@ export default function App() {
           What's happening across campus, all in one place.
         </h1>
         <p className="mt-2.5 max-w-xl text-xs sm:text-sm" style={{ color: THEME.inkSoft, lineHeight: 1.5 }}>
-          Every faculty posts here — talks, camps, festivals, and finals. Browse by day or month, and add your own event with a poster in a minute.
+          Every Faculty. Every Event. One Campus.
+          Discover, share, and never miss university events ; all in one place.
         </p>
         {heroStats.length > 0 && (
           <div className="flex flex-wrap gap-5 mt-4">
