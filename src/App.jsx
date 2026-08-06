@@ -2760,9 +2760,8 @@ export default function App() {
             <button
               onClick={() => setShowAdd(true)}
               className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold transition-transform active:scale-95 shadow-sm flex-shrink-0"
-              style={{ backgroundColor: "#00e5ff", color: "#05080e" }}
+              style={{ backgroundColor: "#05051b", color: "#707a8c" }}
             >
-              <CalendarPlus size={14} />
               <span>POST</span>
             </button>
           </div>
