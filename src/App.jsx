@@ -2097,9 +2097,9 @@ function LostFoundSection({ tickets, loading, authUser, isAdmin, onOpenTicket, o
 
       <div className="flex flex-wrap gap-5 mt-5">
         <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, color: THEME.ink, fontWeight: 600 }}>{counts.total}</span> <span className="text-xs" style={{ color: THEME.inkSoft }}>total reports</span></div>
-        <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, color: "#B0334D", fontWeight: 600 }}>{counts.open || 0}</span> <span className="text-xs" style={{ color: THEME.inkSoft }}>open</span></div>
-        <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, color: "#A9820F", fontWeight: 600 }}>{counts.in_progress || 0}</span> <span className="text-xs" style={{ color: THEME.inkSoft }}>in progress</span></div>
-        <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, color: "#1E8A5C", fontWeight: 600 }}>{counts.resolved || 0}</span> <span className="text-xs" style={{ color: THEME.inkSoft }}>resolved</span></div>
+        <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, color: THEME.ink, fontWeight: 600 }}>{counts.open || 0}</span> <span className="text-xs" style={{ color: THEME.inkSoft }}>open</span></div>
+        <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, color: THEME.ink, fontWeight: 600 }}>{counts.in_progress || 0}</span> <span className="text-xs" style={{ color: THEME.inkSoft }}>in progress</span></div>
+        <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, color: THEME.ink, fontWeight: 600 }}>{counts.resolved || 0}</span> <span className="text-xs" style={{ color: THEME.inkSoft }}>resolved</span></div>
       </div>
 
       <div className="mt-6">
