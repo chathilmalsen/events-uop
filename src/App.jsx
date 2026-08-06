@@ -10,6 +10,8 @@ import {
   CheckCircle2, CircleDot, Loader2, Home
 } from "lucide-react";
 
+import { motion } from "framer-motion";
+
 import {
   RiHome5Fill,
   RiHome5Line,
@@ -2152,8 +2154,6 @@ function LostFoundSection({ tickets, loading, authUser, isAdmin, onOpenTicket, o
 // Persistent bottom navigation bar, visible at every viewport size, so
 // switching between the Events board and Lost & Found / Facility Issues
 // feels like one app instead of two.
-import { motion } from "framer-motion";
-import { Home, PackageSearch, User } from "lucide-react";
 
 const items = [
   { id: "events", icon: Home },
