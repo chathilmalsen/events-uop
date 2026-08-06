@@ -13,6 +13,15 @@ import {
 import { motion } from "framer-motion";
 
 import {
+  Linkedin,
+  Youtube,
+  Instagram,
+  Facebook,
+  Send,
+  Music2
+} from "lucide-react";
+
+import {
   RiHome5Fill,
   RiHome5Line,
   RiUser3Fill,
@@ -2955,6 +2964,7 @@ export default function App() {
       border: `1px solid ${THEME.line}`
     }}
   >
+
     <h2
       style={{
         fontFamily: "'Fraunces', serif",
@@ -2967,6 +2977,7 @@ export default function App() {
       Developer Contacts
     </h2>
 
+
     <p
       className="text-sm mb-6"
       style={{ color: THEME.inkSoft }}
@@ -2974,130 +2985,164 @@ export default function App() {
       Got questions, feedback, or want to collaborate?
     </p>
 
+
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
 
       {[
         {
           name: "LinkedIn",
-          url: "https://www.linkedin.com/in/chathilmalsen"
+          url: "https://www.linkedin.com/in/chathilmalsen",
+          icon: Linkedin
         },
         {
           name: "Youtube",
-          url: "https://youtube.com/@chathilmalsen?si=r2qH0DQiSDrx3BAa"
+          url: "https://youtube.com/@chathilmalsen?si=r2qH0DQiSDrx3BAa",
+          icon: Youtube
         },
         {
           name: "Instagram",
-          url: INSTAGRAM_URL
+          url: INSTAGRAM_URL,
+          icon: Instagram
         },
         {
           name: "Facebook",
-          url: "https://www.facebook.com/profile.php?id=61576211142033&mibextid=wwXIfr"
+          url: "https://www.facebook.com/profile.php?id=61576211142033&mibextid=wwXIfr",
+          icon: Facebook
         },
         {
           name: "Telegram",
-          url: "https://t.me/cmtutor"
+          url: "https://t.me/cmtutor",
+          icon: Send
         },
         {
           name: "Tiktok",
-          url: "https://www.tiktok.com/@chathil.malsen?_r=1&_t=ZS-98cpEQNblx7"
+          url: "https://www.tiktok.com/@chathil.malsen?_r=1&_t=ZS-98cpEQNblx7",
+          icon: Music2
         }
-      ].map((social) => (
-        <a
-          key={social.name}
-          href={social.url}
-          target="_blank"
-          rel="noreferrer"
 
-          className="
-            group
-            relative
-            overflow-hidden
+      ].map((social) => {
 
-            flex
-            items-center
-            justify-center
+        const Icon = social.icon;
 
-            p-3
+        return (
+          <a
+            key={social.name}
+            href={social.url}
+            target="_blank"
+            rel="noreferrer"
 
-            rounded-xl
+            className="
+              group
+              relative
+              overflow-hidden
 
-            text-sm
-            font-semibold
+              flex
+              items-center
+              justify-center
+              gap-2
 
-            cursor-pointer
+              p-3
 
-            transition-all
-            duration-150
+              rounded-xl
 
-            hover:-translate-y-1
+              text-sm
+              font-semibold
 
-            active:translate-y-[4px]
-            active:scale-95
+              transition-all
+              duration-150
 
-            shadow-[0_8px_25px_rgba(0,0,0,0.15)]
-          "
+              hover:-translate-y-1
 
-          style={{
-            color: THEME.ink,
+              active:translate-y-[4px]
+              active:scale-95
 
-            background:
+              shadow-[0_8px_25px_rgba(0,0,0,0.15)]
+            "
+
+            style={{
+              color: THEME.ink,
+
+              background:
               "linear-gradient(135deg, rgba(255,255,255,0.35), rgba(255,255,255,0.08))",
 
-            backdropFilter:
+              backdropFilter:
               "blur(20px)",
 
-            WebkitBackdropFilter:
+              WebkitBackdropFilter:
               "blur(20px)",
 
-            border:
+              border:
               "1px solid rgba(255,255,255,0.45)",
 
-            boxShadow:
+              boxShadow:
               "inset 0 1px 3px rgba(255,255,255,0.5), 0 8px 25px rgba(0,0,0,0.15)"
-          }}
-        >
+            }}
+          >
 
-          {/* Moving glass shine */}
-          <span
-            className="
-              absolute
-              inset-0
+            {/* Moving shine */}
+            <span
+              className="
+                absolute
+                inset-0
 
-              bg-gradient-to-r
-              from-transparent
-              via-white/70
-              to-transparent
+                bg-gradient-to-r
+                from-transparent
+                via-white/70
+                to-transparent
 
-              -translate-x-[120%]
+                -translate-x-[120%]
 
-              group-hover:translate-x-[120%]
+                group-hover:translate-x-[120%]
 
-              transition-transform
-              duration-700
-            "
-          />
+                transition-transform
+                duration-700
+              "
+            />
 
-          {/* Top glass reflection */}
-          <span
-            className="
-              absolute
-              inset-x-0
-              top-0
 
-              h-[1px]
+            {/* Top glass reflection */}
+            <span
+              className="
+                absolute
+                inset-x-0
+                top-0
 
-              bg-white/70
-            "
-          />
+                h-[1px]
 
-          <span className="relative z-10">
-            {social.name}
-          </span>
+                bg-white/70
+              "
+            />
 
-        </a>
-      ))}
+
+            <Icon
+              size={18}
+              strokeWidth={2.2}
+              className="
+                relative
+                z-10
+              "
+            />
+
+
+            <span
+              className="
+                relative
+                z-10
+              "
+            >
+              {social.name}
+            </span>
+
+
+          </a>
+        );
+
+      })}
+
 
     </div>
+
   </div>
 ) : (
       <>
