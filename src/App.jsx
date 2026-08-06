@@ -2185,6 +2185,9 @@ function BottomNav({ section, setSection, isAdmin }) {
 export default function App() {
   const [section, setSection] = useState("events"); // "events" | "lostfound"
 
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [showInstallBtn, setShowInstallBtn] = useState(false);
+
   const [tickets, setTickets] = useState([]);
   const [ticketsLoading, setTicketsLoading] = useState(true);
   const [authUser, setAuthUser] = useState(null); // any signed-in Firebase user (regular or admin)
@@ -2229,6 +2232,22 @@ export default function App() {
   }, [searchInput]);
 
   useEffect(() => {
+  const handler = (e) => {
+    e.preventDefault();
+    setDeferredPrompt(e);
+    setShowInstallBtn(true);
+  };
+  window.addEventListener("beforeinstallprompt", handler);
+
+  window.addEventListener("appinstalled", () => {
+    setShowInstallBtn(false);
+    setDeferredPrompt(null);
+  });
+
+  return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  useEffect(() => {
     if (!window.matchMedia) return;
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const handler = (e) => setSystemDark(e.matches);
@@ -2248,6 +2267,15 @@ export default function App() {
   const handleSaveUserName = (name) => {
     localStorage.setItem("cg_user_name", name);
     setCurrentUser(name);
+  };
+
+  const handleInstallClick = async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  console.log(`Install prompt outcome: ${outcome}`);
+  setDeferredPrompt(null);
+  setShowInstallBtn(false);
   };
 
   const toggleBookmark = (id) => {
@@ -2678,13 +2706,24 @@ export default function App() {
               </button>
             )}
 
+            {showInstallBtn && (
+            <button
+              onClick={handleInstallClick}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors hover:bg-white/10"
+              style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", color: THEME.headerText }}
+             >
+             <Download size={14} color={THEME.headerText} />
+             <span>Install App</span>
+             </button>
+             )}
+
             <button
               onClick={() => setShowAdd(true)}
               className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-transform active:scale-95 shadow-md hover:shadow-lg"
               style={{ backgroundColor: "#00e5ff", color: "#05080e" }}
             >
               <CalendarPlus size={16} />
-              <span>Post Event</span>
+              <span>+</span>
             </button>
           </div>
         </div>
@@ -2708,13 +2747,24 @@ export default function App() {
               </div>
             </div>
 
+            {showInstallBtn && (
+          <button
+            onClick={handleInstallClick}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors hover:bg-white/10"
+            style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", color: THEME.headerText }}
+          >
+          <Download size={14} color={THEME.headerText} />
+          <span>Install App</span>
+          </button>
+        )}
+
             <button
               onClick={() => setShowAdd(true)}
               className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold transition-transform active:scale-95 shadow-sm flex-shrink-0"
               style={{ backgroundColor: "#00e5ff", color: "#05080e" }}
             >
               <CalendarPlus size={14} />
-              <span>Post Event</span>
+              <span>+</span>
             </button>
           </div>
 
