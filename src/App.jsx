@@ -2660,13 +2660,13 @@ export default function App() {
                 </span>
               </div>
               <div className="flex items-center gap-2 text-xs leading-tight mt-0.5" style={{ color: THEME.headerSoft }}>
-                <span>By Chathil Malsen</span>
+                <span>Chathil Malsen</span>
                 <span>•</span>
-                <a href="https://www.linkedin.com/in/chathilmalsen" target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: "#38bdf8" }}>
+                <a href="https://www.linkedin.com/in/chathilmalsen" target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: "#a0daf3" }}>
                   LinkedIn
                 </a>
                 <span>•</span>
-                <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: "#38bdf8" }}>
+                <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: "#a0daf3" }}>
                   Instagram
                 </a>
               </div>
@@ -2769,11 +2769,11 @@ export default function App() {
             <div className="flex items-center gap-1.5 truncate">
               <span>Chathil Malsen</span>
               <span>•</span>
-              <a href="https://www.linkedin.com/in/chathilmalsen" target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: "#38bdf8" }}>
+              <a href="https://www.linkedin.com/in/chathilmalsen" target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: "#a0daf3" }}>
                 LinkedIn
               </a>
               <span>•</span>
-              <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: "#38bdf8" }}>
+              <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="hover:underline font-semibold" style={{ color: "#a0daf3" }}>
                 Instagram
               </a>
             </div>
