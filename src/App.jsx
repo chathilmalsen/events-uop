@@ -13,13 +13,13 @@ import {
 import { motion } from "framer-motion";
 
 import {
-  Linkedin,
-  Youtube,
-  Instagram,
-  Facebook,
-  Send as TelegramIcon,
-  Music2
-} from "lucide-react";
+  FaLinkedin,
+  FaYoutube,
+  FaInstagram,
+  FaFacebook,
+  FaTelegramPlane,
+  FaTiktok
+} from "react-icons/fa";
 
 import {
   RiHome5Fill,
@@ -2956,7 +2956,7 @@ export default function App() {
           onSignOut={handleUserSignOut}
         />
       
-  ) : section === "developer" ? (
+ ) : section === "developer" ? (
   <div
     className="max-w-4xl mx-auto p-6 my-8 rounded-2xl"
     style={{
@@ -2993,32 +2993,38 @@ export default function App() {
         {
           name: "LinkedIn",
           url: "https://www.linkedin.com/in/chathilmalsen",
-          icon: Linkedin
+          icon: FaLinkedin,
+          color: "#0A66C2"
         },
         {
           name: "Youtube",
           url: "https://youtube.com/@chathilmalsen?si=r2qH0DQiSDrx3BAa",
-          icon: Youtube
+          icon: FaYoutube,
+          color: "#FF0000"
         },
         {
           name: "Instagram",
           url: INSTAGRAM_URL,
-          icon: Instagram
+          icon: FaInstagram,
+          color: "#E4405F"
         },
         {
           name: "Facebook",
           url: "https://www.facebook.com/profile.php?id=61576211142033&mibextid=wwXIfr",
-          icon: Facebook
+          icon: FaFacebook,
+          color: "#1877F2"
         },
         {
           name: "Telegram",
           url: "https://t.me/cmtutor",
-          icon: TelegramIcon
+          icon: FaTelegramPlane,
+          color: "#229ED9"
         },
         {
           name: "Tiktok",
           url: "https://www.tiktok.com/@chathil.malsen?_r=1&_t=ZS-98cpEQNblx7",
-          icon: Music2
+          icon: FaTiktok,
+          color: "#000000"
         }
 
       ].map((social) => {
@@ -3026,6 +3032,7 @@ export default function App() {
         const Icon = social.icon;
 
         return (
+
           <a
             key={social.name}
             href={social.url}
@@ -3040,7 +3047,7 @@ export default function App() {
               flex
               items-center
               justify-center
-              gap-2
+              gap-3
 
               p-3
 
@@ -3080,7 +3087,7 @@ export default function App() {
             }}
           >
 
-            {/* Moving shine */}
+            {/* Shine animation */}
             <span
               className="
                 absolute
@@ -3101,27 +3108,23 @@ export default function App() {
             />
 
 
-            {/* Top glass reflection */}
-            <span
-              className="
-                absolute
-                inset-x-0
-                top-0
-
-                h-[1px]
-
-                bg-white/70
-              "
-            />
-
-
+            {/* Brand icon */}
             <Icon
-              size={18}
-              strokeWidth={2.2}
+              size={22}
               className="
                 relative
                 z-10
+
+                transition-transform
+                duration-300
+
+                group-hover:scale-110
               "
+              style={{
+                color: social.color,
+                filter:
+                "drop-shadow(0 2px 3px rgba(0,0,0,0.25))"
+              }}
             />
 
 
@@ -3136,6 +3139,7 @@ export default function App() {
 
 
           </a>
+
         );
 
       })}
