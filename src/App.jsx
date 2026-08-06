@@ -2721,7 +2721,7 @@ export default function App() {
               className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-transform active:scale-95 shadow-md hover:shadow-lg"
               style={{color: "#dfe0e1"  }}
             >
-              <span className="text-3xl font-bold">+</span>
+              <span className="text-6xl">+</span>
             </button>
           </div>
         </div>
@@ -2761,7 +2761,7 @@ export default function App() {
               className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold transition-transform active:scale-95 shadow-sm flex-shrink-0"
               style={{color: "#dfe0e1"  }}
             >
-              <span className="text-3xl font-bold">+</span>
+              <span className="text-6xl">+</span>
             </button>
           </div>
 
