@@ -55,6 +55,8 @@ import {
   updateProfile
 } from "firebase/auth";
 
+import {serverTimestamp } from "firebase/firestore";
+
 const ADMIN_EMAIL = "ktchathilmalsencm@gmail.com";
 const INSTAGRAM_URL = "https://www.instagram.com/chathilmkt?igsh=MTgwZGdlbnVwMzQzeA%3D%3D&utm_source=qr";
 
@@ -3016,7 +3018,9 @@ export default function App() {
           onSignOut={handleUserSignOut}
         />
       
- ) : section === "developer" ? (
+) : section === "developer" ? (
+  <>
+
   <div
     className="max-w-4xl mx-auto p-6 my-8 rounded-2xl"
     style={{
@@ -3205,9 +3209,231 @@ export default function App() {
       })}
 
 
-    </div>
+        </div>
 
   </div>
+
+
+  {/* Suggestion & Collaboration Forum */}
+
+  <div
+    className="
+      max-w-4xl
+      mx-auto
+      p-6
+      my-8
+      rounded-2xl
+    "
+    style={{
+      backgroundColor: THEME.card,
+      border: `1px solid ${THEME.line}`
+    }}
+  >
+
+    <h2
+      style={{
+        fontFamily: "'Fraunces', serif",
+        color: THEME.ink,
+        fontSize: 22,
+        fontWeight: 600
+      }}
+      className="mb-2"
+    >
+      Send a Suggestion
+    </h2>
+
+
+    <p
+      className="text-sm mb-6"
+      style={{ color: THEME.inkSoft }}
+    >
+      Have an idea, feedback, or want to collaborate? Send me a message.
+    </p>
+
+
+    <form
+  className="space-y-4"
+  onSubmit={async (e) => {
+    e.preventDefault();
+
+    try {
+
+      await addDoc(
+        collection(db, "messages"),
+        {
+          name: e.target.name.value,
+          email: e.target.email.value,
+          type: e.target.type.value,
+          message: e.target.message.value,
+          createdAt: serverTimestamp()
+        }
+      );
+
+
+      alert("Message sent successfully!");
+
+      e.target.reset();
+
+
+    } catch (error) {
+
+      console.error(error);
+
+      alert("Failed to send message");
+
+    }
+  }}
+>
+
+      <input
+ name="name"
+ type="text"
+ placeholder="Your name"
+ required
+        className="
+          w-full
+          p-3
+          rounded-xl
+          outline-none
+          text-sm
+        "
+        style={{
+          color: THEME.ink,
+          background:
+          "rgba(255,255,255,0.18)",
+          border:
+          "1px solid rgba(255,255,255,0.35)",
+          backdropFilter:
+          "blur(15px)"
+        }}
+      />
+
+
+<input
+ name="email"
+ type="email"
+ placeholder="Your email"
+        className="
+          w-full
+          p-3
+          rounded-xl
+          outline-none
+          text-sm
+        "
+        style={{
+          color: THEME.ink,
+          background:
+          "rgba(255,255,255,0.18)",
+          border:
+          "1px solid rgba(255,255,255,0.35)",
+          backdropFilter:
+          "blur(15px)"
+        }}
+      />
+
+
+      <select
+        className="
+          w-full
+          p-3
+          rounded-xl
+          outline-none
+          text-sm
+        "
+        style={{
+          color: THEME.ink,
+          background:
+          "rgba(255,255,255,0.18)",
+          border:
+          "1px solid rgba(255,255,255,0.35)"
+        }}
+      >
+        <option>
+          Suggestion
+        </option>
+
+        <option>
+          Collaboration
+        </option>
+
+        <option>
+          Feedback
+        </option>
+
+        <option>
+          Contact Developer
+        </option>
+
+      </select>
+
+
+     <textarea
+ name="message"
+ rows="5"
+ placeholder="Write your message..."
+ required
+        className="
+          w-full
+          p-3
+          rounded-xl
+          outline-none
+          text-sm
+          resize-none
+        "
+        style={{
+          color: THEME.ink,
+          background:
+          "rgba(255,255,255,0.18)",
+          border:
+          "1px solid rgba(255,255,255,0.35)",
+          backdropFilter:
+          "blur(15px)"
+        }}
+      />
+
+
+      <button
+        type="submit"
+        className="
+          relative
+          overflow-hidden
+
+          w-full
+
+          p-3
+
+          rounded-xl
+
+          font-semibold
+
+          transition-all
+
+          hover:-translate-y-1
+
+          active:scale-95
+        "
+        style={{
+          color: "#ffffff",
+
+          background:
+          "linear-gradient(135deg,#2563eb,#06b6d4)",
+
+          boxShadow:
+          "0 10px 25px rgba(37,99,235,.35)"
+        }}
+      >
+
+        Send Message
+
+      </button>
+
+
+    </form>
+
+    </div>
+
+  </>
+
 ) : (
       <>
       {/* Hero Section */}
