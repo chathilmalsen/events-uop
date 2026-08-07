@@ -59,6 +59,7 @@ import {serverTimestamp } from "firebase/firestore";
 
 const ADMIN_EMAIL = "ktchathilmalsencm@gmail.com";
 const INSTAGRAM_URL = "https://www.instagram.com/chathilmkt?igsh=MTgwZGdlbnVwMzQzeA%3D%3D&utm_source=qr";
+const YOUTUBE_URL = "https://youtube.com/@chathilmalsen?si=ogQ5UF4PWG1ktGfY";
 
 const FACULTIES = [
   { id: "engineering", name: "Faculty of Engineering", short: "FOE", color: "#356a9f" },
@@ -2884,7 +2885,7 @@ export default function App() {
   className="flex items-center gap-2 text-xs leading-tight mt-0.5"
   style={{ color: THEME.headerSoft }}
 >
-  <span>Chathil Malsen</span>
+<span>Chathil Malsen</span>
 
 <span>•</span>
 
@@ -2943,7 +2944,7 @@ export default function App() {
 <span>•</span>
 
 <a
-  <a href= "https://youtube.com/@chathilmalsen?si=ogQ5UF4PWG1ktGfY" >
+  href={YOUTUBE_URL}
   target="_blank"
   rel="noopener noreferrer"
   className="
@@ -3123,7 +3124,7 @@ export default function App() {
 <span>•</span>
 
 <a
-  <a href= "https://youtube.com/@chathilmalsen?si=ogQ5UF4PWG1ktGfY" >
+  href={YOUTUBE_URL}
   target="_blank"
   rel="noopener noreferrer"
   className="
