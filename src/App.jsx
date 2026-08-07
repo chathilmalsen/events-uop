@@ -3077,7 +3077,7 @@ export default function App() {
       }}
     />
 
-    LinkedIn
+    
   </a>
 
 
@@ -3111,7 +3111,7 @@ export default function App() {
       }}
     />
 
-    Instagram
+    
   </a>
 
 </div>
