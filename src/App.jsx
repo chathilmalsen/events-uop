@@ -2934,7 +2934,7 @@ export default function App() {
     size={15}
     style={{
       color: "#E4405F",
-      filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.2))
+      filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.2))"
     }}
   />
   Instagram
