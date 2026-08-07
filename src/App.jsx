@@ -3048,7 +3048,7 @@ export default function App() {
 
           <div className="flex items-center justify-between pt-1.5 text-[10px]" style={{ borderTop: `1px dashed rgba(255,255,255,0.15)`, color: THEME.headerSoft }}>
             <div className="flex items-center gap-1.5 truncate">
-              <<span>Chathil Malsen</span>
+              <span>Chathil Malsen</span>
 
   <span>•</span>
 
@@ -3113,7 +3113,8 @@ export default function App() {
 
     Instagram
   </a>
-            </div>
+
+</div>
 
             <div className="flex items-center gap-1.5 flex-shrink-0">
               <ThemeToggle mode={themeMode} setMode={setThemeMode} />
