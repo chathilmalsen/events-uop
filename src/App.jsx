@@ -2886,70 +2886,86 @@ export default function App() {
 >
   <span>Chathil Malsen</span>
 
-  <span>•</span>
+<span>•</span>
 
-  <a
-    href="https://www.linkedin.com/in/chathilmalsen"
-    target="_blank"
-    rel="noopener noreferrer"
-    className="
-      flex
-      items-center
-      gap-1
-
-      hover:underline
-      font-semibold
-
-      transition-all
-      duration-200
-    "
-    style={{ color: "#0A66C2" }}
-  >
-    <FaLinkedin
-      size={14}
-      style={{
-        color: "#0A66C2",
-        filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.2))"
-      }}
-    />
-
-    LinkedIn
-  </a>
-
-
-  <span>•</span>
-
-
-  <a
-    href={INSTAGRAM_URL}
-    target="_blank"
-    rel="noopener noreferrer"
-    className="
-      flex
-      items-center
-      gap-1
-
-      hover:underline
-      font-semibold
-
-      transition-all
-      duration-200
-    "
+<a
+  href="https://www.linkedin.com/in/chathilmalsen"
+  target="_blank"
+  rel="noopener noreferrer"
+  className="
+    flex
+    items-center
+    gap-1
+    hover:underline
+    font-semibold
+    transition-all
+    duration-200
+  "
+  style={{ color: "#0A66C2" }}
+>
+  <FaLinkedin
+    size={14}
     style={{
-      color: "#E4405F"
+      color: "#0A66C2",
+      filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.2))"
     }}
-  >
-    <FaInstagram
-      size={15}
-      style={{
-        color: "#E4405F",
-        filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.2))"
-      }}
-    />
+  />
+  Linkedln
+</a>
 
-    Instagram
-  </a>
+<span>•</span>
 
+<a
+  href={INSTAGRAM_URL}
+  target="_blank"
+  rel="noopener noreferrer"
+  className="
+    flex
+    items-center
+    gap-1
+    hover:underline
+    font-semibold
+    transition-all
+    duration-200
+  "
+  style={{ color: "#E4405F" }}
+>
+  <FaInstagram
+    size={15}
+    style={{
+      color: "#E4405F",
+      filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.2))
+    }}
+  />
+  Instagram
+</a>
+
+<span>•</span>
+
+<a
+  href=https://youtube.com/@chathilmalsen?si=ogQ5UF4PWG1ktGfY
+  target="_blank"
+  rel="noopener noreferrer"
+  className="
+    flex
+    items-center
+    gap-1
+    hover:underline
+    font-semibold
+    transition-all
+    duration-200
+  "
+  style={{ color: "#FF0000" }}
+>
+  <FaYoutube
+    size={15}
+    style={{
+      color: "#FF0000",
+      filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.2))"
+    }}
+  />
+  Youtube
+</a>
 </div>
             </div>
           </div>
@@ -3048,71 +3064,87 @@ export default function App() {
 
           <div className="flex items-center justify-between pt-1.5 text-[10px]" style={{ borderTop: `1px dashed rgba(255,255,255,0.15)`, color: THEME.headerSoft }}>
             <div className="flex items-center gap-1.5 truncate">
-              <span>Chathil Malsen</span>
 
-  <span>•</span>
+<span>Chathil Malsen</span>
 
-  <a
-    href="https://www.linkedin.com/in/chathilmalsen"
-    target="_blank"
-    rel="noopener noreferrer"
-    className="
-      flex
-      items-center
-      gap-1
+<span>•</span>
 
-      hover:underline
-      font-semibold
-
-      transition-all
-      duration-200
-    "
-    style={{ color: "#0A66C2" }}
-  >
-    <FaLinkedin
-      size={14}
-      style={{
-        color: "#0A66C2",
-        filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.2))"
-      }}
-    />
-
-    
-  </a>
-
-
-  <span>•</span>
-
-
-  <a
-    href={INSTAGRAM_URL}
-    target="_blank"
-    rel="noopener noreferrer"
-    className="
-      flex
-      items-center
-      gap-1
-
-      hover:underline
-      font-semibold
-
-      transition-all
-      duration-200
-    "
+<a
+  href="https://www.linkedin.com/in/chathilmalsen"
+  target="_blank"
+  rel="noopener noreferrer"
+  className="
+    flex
+    items-center
+    gap-1
+    hover:underline
+    font-semibold
+    transition-all
+    duration-200
+  "
+  style={{ color: "#0A66C2" }}
+>
+  <FaLinkedin
+    size={14}
     style={{
-      color: "#E4405F"
+      color: "#0A66C2",
+      filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.2))"
     }}
-  >
-    <FaInstagram
-      size={15}
-      style={{
-        color: "#E4405F",
-        filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.2))"
-      }}
-    />
+  />
+  Linkedln
+</a>
 
-    
-  </a>
+<span>•</span>
+
+<a
+  href={INSTAGRAM_URL}
+  target="_blank"
+  rel="noopener noreferrer"
+  className="
+    flex
+    items-center
+    gap-1
+    hover:underline
+    font-semibold
+    transition-all
+    duration-200
+  "
+  style={{ color: "#E4405F" }}
+>
+  <FaInstagram
+    size={15}
+    style={{
+      color: "#E4405F",
+      filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.2))
+    }}
+  />
+</a>
+
+<span>•</span>
+
+<a
+  href= https://youtube.com/@chathilmalsen?si=ogQ5UF4PWG1ktGfY
+  target="_blank"
+  rel="noopener noreferrer"
+  className="
+    flex
+    items-center
+    gap-1
+    hover:underline
+    font-semibold
+    transition-all
+    duration-200
+  "
+  style={{ color: "#FF0000" }}
+>
+  <FaYoutube
+    size={15}
+    style={{
+      color: "#FF0000",
+      filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.2))"
+    }}
+  />
+</a>
 
 </div>
 
