@@ -3092,7 +3092,6 @@ export default function App() {
       filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.2))"
     }}
   />
-  Linkedln
 </a>
 
 <span>•</span>
