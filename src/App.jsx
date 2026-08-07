@@ -2943,7 +2943,7 @@ export default function App() {
 <span>•</span>
 
 <a
-  href=https://youtube.com/@chathilmalsen?si=ogQ5UF4PWG1ktGfY
+  <a href= "https://youtube.com/@chathilmalsen?si=ogQ5UF4PWG1ktGfY" >
   target="_blank"
   rel="noopener noreferrer"
   className="
@@ -3123,7 +3123,7 @@ export default function App() {
 <span>•</span>
 
 <a
-  href= https://youtube.com/@chathilmalsen?si=ogQ5UF4PWG1ktGfY
+  <a href= "https://youtube.com/@chathilmalsen?si=ogQ5UF4PWG1ktGfY" >
   target="_blank"
   rel="noopener noreferrer"
   className="
