@@ -2329,6 +2329,9 @@ export default function App() {
 
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showInstallBtn, setShowInstallBtn] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
+  const [showIOSInstallHelp, setShowIOSInstallHelp] = useState(false);
 
   const [tickets, setTickets] = useState([]);
   const [ticketsLoading, setTicketsLoading] = useState(true);
@@ -2386,6 +2389,22 @@ export default function App() {
     return () => clearTimeout(t);
   }, [loading]);
 
+  // PWA installability detection. `beforeinstallprompt` only fires on
+  // Chromium-based browsers (Chrome, Edge, Samsung Internet, Android
+  // WebView) when the site has a valid manifest + registered service
+  // worker over HTTPS. iOS Safari never fires this event at all, so we
+  // detect iOS separately and show manual "Add to Home Screen"
+  // instructions instead. We also detect standalone/installed mode so the
+  // Install button disappears once the app is already installed.
+  useEffect(() => {
+    const standalone =
+      (typeof window !== "undefined" && window.matchMedia
+        ? window.matchMedia("(display-mode: standalone)").matches
+        : false) || window.navigator.standalone === true; // iOS Safari flag
+    setIsStandalone(standalone);
+    setIsIOS(/iPad|iPhone|iPod/.test(window.navigator.userAgent) && !window.MSStream);
+  }, []);
+
   useEffect(() => {
   const handler = (e) => {
     e.preventDefault();
@@ -2397,6 +2416,7 @@ export default function App() {
   window.addEventListener("appinstalled", () => {
     setShowInstallBtn(false);
     setDeferredPrompt(null);
+    setIsStandalone(true);
   });
 
   return () => window.removeEventListener("beforeinstallprompt", handler);
@@ -2425,12 +2445,18 @@ export default function App() {
   };
 
   const handleInstallClick = async () => {
-  if (!deferredPrompt) return;
-  deferredPrompt.prompt();
-  const { outcome } = await deferredPrompt.userChoice;
-  console.log(`Install prompt outcome: ${outcome}`);
-  setDeferredPrompt(null);
-  setShowInstallBtn(false);
+    // iOS Safari has no native install prompt API — walk the user through
+    // the manual "Add to Home Screen" steps instead.
+    if (isIOS) {
+      setShowIOSInstallHelp(true);
+      return;
+    }
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log(`Install prompt outcome: ${outcome}`);
+    setDeferredPrompt(null);
+    setShowInstallBtn(false);
   };
 
   const toggleBookmark = (id) => {
@@ -2722,6 +2748,11 @@ export default function App() {
     { value: bookmarks.length, label: "saved by you" },
   ].filter((s) => s.value > 0);
 
+  // Show the header Install button whenever there's a real path to install:
+  // Chromium fired beforeinstallprompt, or we're on iOS (manual flow) — and
+  // hide it once the app is already running standalone (i.e. installed).
+  const canShowInstallButton = (showInstallBtn || isIOS) && !isStandalone;
+
   return (
     <div style={{ backgroundColor: THEME.cream, minHeight: "100vh", fontFamily: "'Inter', sans-serif", transition: "background-color 0.2s ease" }}>
       <style>{`
@@ -2925,7 +2956,7 @@ export default function App() {
               </button>
             )}
 
-            {showInstallBtn && (
+            {canShowInstallButton && (
             <button
               onClick={handleInstallClick}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors hover:bg-white/10"
@@ -2965,7 +2996,7 @@ export default function App() {
               </div>
             </div>
 
-            {showInstallBtn && (
+            {canShowInstallButton && (
           <button
             onClick={handleInstallClick}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors hover:bg-white/10"
@@ -3717,6 +3748,34 @@ export default function App() {
           isAdmin={isAdmin}
           authUser={authUser}
         />
+      )}
+
+      {showIOSInstallHelp && (
+        <Modal onClose={() => setShowIOSInstallHelp(false)}>
+          <div className="p-5 sm:p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 style={{ fontFamily: "'Fraunces', serif", color: THEME.ink, fontSize: 20, fontWeight: 600 }} className="flex items-center gap-2">
+                <Download size={20} color={THEME.gold} /> Install Campus Connect
+              </h2>
+              <button onClick={() => setShowIOSInstallHelp(false)} aria-label="Close" className="p-1.5 rounded-full hover:bg-black/5">
+                <X size={18} color={THEME.inkSoft} />
+              </button>
+            </div>
+            <p className="text-xs mb-4" style={{ color: THEME.inkSoft }}>
+              iOS doesn't support one-tap install from the browser — add it to your Home Screen in a few taps instead:
+            </p>
+            <ol className="text-sm space-y-2.5 list-decimal list-inside" style={{ color: THEME.ink }}>
+              <li>Tap the <strong>Share</strong> icon in Safari's toolbar (the square with an arrow pointing up).</li>
+              <li>Scroll down the share sheet and tap <strong>"Add to Home Screen."</strong></li>
+              <li>Tap <strong>"Add"</strong> in the top right corner.</li>
+            </ol>
+            <div className="flex justify-end mt-6">
+              <button onClick={() => setShowIOSInstallHelp(false)} className="px-5 py-2 rounded-full text-sm font-semibold" style={{ backgroundColor: THEME.ink, color: THEME.cream }}>
+                Got it
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );
