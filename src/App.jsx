@@ -2062,6 +2062,16 @@ function LostFoundSection({ tickets, loading, authUser, isAdmin, onOpenTicket, o
     return c;
   }, [tickets]);
 
+  // Only show a stat once it has real data behind it — an all-zero row
+  // ("0 total / 0 open / 0 in progress / 0 resolved") reads as an empty,
+  // broken-looking product before anyone has filed a report yet.
+  const ticketStats = [
+    { value: counts.total, label: "total reports" },
+    { value: counts.open || 0, label: "open" },
+    { value: counts.in_progress || 0, label: "in progress" },
+    { value: counts.resolved || 0, label: "resolved" },
+  ].filter((s) => s.value > 0);
+
   const filtered = useMemo(() => {
     return tickets.filter((t) => {
       if (typeFilter !== "all" && t.type !== typeFilter) return false;
@@ -2115,12 +2125,13 @@ function LostFoundSection({ tickets, loading, authUser, isAdmin, onOpenTicket, o
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-5 mt-5">
-        <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, color: THEME.ink, fontWeight: 600 }}>{counts.total}</span> <span className="text-xs" style={{ color: THEME.inkSoft }}>total reports</span></div>
-        <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, color: THEME.ink, fontWeight: 600 }}>{counts.open || 0}</span> <span className="text-xs" style={{ color: THEME.inkSoft }}>open</span></div>
-        <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, color: THEME.ink, fontWeight: 600 }}>{counts.in_progress || 0}</span> <span className="text-xs" style={{ color: THEME.inkSoft }}>in progress</span></div>
-        <div><span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, color: THEME.ink, fontWeight: 600 }}>{counts.resolved || 0}</span> <span className="text-xs" style={{ color: THEME.inkSoft }}>resolved</span></div>
-      </div>
+      {ticketStats.length > 0 && (
+        <div className="flex flex-wrap gap-5 mt-5">
+          {ticketStats.map((s) => (
+            <div key={s.label}><span style={{ fontFamily: "'Fraunces', serif", fontSize: 22, color: THEME.ink, fontWeight: 600 }}>{s.value}</span> <span className="text-xs" style={{ color: THEME.inkSoft }}>{s.label}</span></div>
+          ))}
+        </div>
+      )}
 
       <div className="mt-6">
         <div className="relative mb-3">
@@ -2329,6 +2340,10 @@ export default function App() {
 
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  // If the initial Firestore load takes a while, it's most likely a cold
+  // start on a free-tier host waking up rather than a stuck connection —
+  // surface that possibility instead of leaving a bare spinner on screen.
+  const [slowLoad, setSlowLoad] = useState(false);
   const [view, setView] = useState("list");
   const [facultyFilter, setFacultyFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -2361,6 +2376,15 @@ export default function App() {
     const t = setTimeout(() => setSearch(searchInput), 250);
     return () => clearTimeout(t);
   }, [searchInput]);
+
+  // Only flip on the "waking up" hint if loading is still in progress after
+  // a few seconds — most cold starts resolve within that window, so a fast
+  // load never shows it at all.
+  useEffect(() => {
+    if (!loading) { setSlowLoad(false); return; }
+    const t = setTimeout(() => setSlowLoad(true), 3000);
+    return () => clearTimeout(t);
+  }, [loading]);
 
   useEffect(() => {
   const handler = (e) => {
@@ -2550,8 +2574,6 @@ export default function App() {
         likes: [],
         comments: [],
         createdAt: Date.now(),
-        createdBy: auth.currentUser.uid,
-        createdAt: serverTimestamp()
       });
       setShowAdd(false);
     } catch (error) {
@@ -2765,7 +2787,11 @@ export default function App() {
         }
       `}</style>
 
-      {/* Header with High-Contrast Text & Lighter Wide Laser Effect with Sparkles */}
+      {/* Header with High-Contrast Text & Lighter Wide Laser Effect with Sparkles.
+          Header is `sticky` (not `fixed`) with a fully opaque headerBg color and
+          `overflow-hidden`, so its decorative HeaderGlow layer is always clipped
+          to the header's own bounds and can never bleed into page content that
+          scrolls beneath it. */}
       <header
         className="sticky top-0 z-40 backdrop-blur relative overflow-hidden transition-colors"
         style={{
@@ -3302,8 +3328,7 @@ export default function App() {
         "
         style={{
           color: THEME.ink,
-          background:
-          "rgba(255,255,255,0.18)",
+          background: THEME.cream === LIGHT_THEME.cream ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.10)",
           border:
           "1px solid rgba(255,255,255,0.35)",
           backdropFilter:
@@ -3325,8 +3350,7 @@ export default function App() {
         "
         style={{
           color: THEME.ink,
-          background:
-          "rgba(255,255,255,0.18)",
+          background: THEME.cream === LIGHT_THEME.cream ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.10)",
           border:
           "1px solid rgba(255,255,255,0.35)",
           backdropFilter:
@@ -3336,6 +3360,7 @@ export default function App() {
 
 
       <select
+        name="type"
         className="
           w-full
           p-3
@@ -3345,8 +3370,7 @@ export default function App() {
         "
         style={{
           color: THEME.ink,
-          background:
-          "rgba(255,255,255,0.18)",
+          background: THEME.cream === LIGHT_THEME.cream ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.10)",
           border:
           "1px solid rgba(255,255,255,0.35)"
         }}
@@ -3385,8 +3409,7 @@ export default function App() {
         "
         style={{
           color: THEME.ink,
-          background:
-          "rgba(255,255,255,0.18)",
+          background: THEME.cream === LIGHT_THEME.cream ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.10)",
           border:
           "1px solid rgba(255,255,255,0.35)",
           backdropFilter:
@@ -3595,7 +3618,14 @@ export default function App() {
       {/* Main Events Feed */}
       <main className="max-w-6xl mx-auto px-4 sm:px-6 pb-16">
         {loading ? (
-          <p className="text-xs py-10 text-center" style={{ color: THEME.inkSoft }}>Loading live events from cloud database…</p>
+          <div className="py-10 text-center">
+            <p className="text-xs" style={{ color: THEME.inkSoft }}>Loading live events from cloud database…</p>
+            {slowLoad && (
+              <p className="text-[11px] mt-1.5" style={{ color: THEME.inkSoft }}>
+                Taking longer than usual — the server may be waking up from idle. This can take up to a minute on the first visit.
+              </p>
+            )}
+          </div>
         ) : view === "calendar" ? (
           <div className="rounded-2xl p-4 sm:p-5" style={{ backgroundColor: THEME.card, border: `1px solid ${THEME.line}` }}>
             <CalendarView events={filtered} month={calMonth} setMonth={setCalMonth} year={calYear} setYear={setCalYear} onOpen={openEvent} />
