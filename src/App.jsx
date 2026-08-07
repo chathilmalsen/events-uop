@@ -2406,20 +2406,50 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-  const handler = (e) => {
-    e.preventDefault();
-    setDeferredPrompt(e);
-    setShowInstallBtn(true);
-  };
-  window.addEventListener("beforeinstallprompt", handler);
+    // IMPORTANT: `beforeinstallprompt` can fire before this component
+    // finishes mounting (it fires as soon as Chrome/Edge decide the page is
+    // installable, which can be very early in page load). If that happens
+    // before this listener attaches, the event is lost forever and the
+    // Install button never appears — even though the site IS installable.
+    //
+    // To make this robust, index.html stashes the event on
+    // `window.__cgDeferredPrompt` the instant it fires (see the inline
+    // script added to public/index.html). Here we just check whether that
+    // already happened, and also listen for any future firing.
+    if (window.__cgDeferredPrompt) {
+      setDeferredPrompt(window.__cgDeferredPrompt);
+      setShowInstallBtn(true);
+    }
 
-  window.addEventListener("appinstalled", () => {
-    setShowInstallBtn(false);
-    setDeferredPrompt(null);
-    setIsStandalone(true);
-  });
+    const handler = (e) => {
+      e.preventDefault();
+      window.__cgDeferredPrompt = e;
+      setDeferredPrompt(e);
+      setShowInstallBtn(true);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
 
-  return () => window.removeEventListener("beforeinstallprompt", handler);
+    const onReady = () => {
+      if (window.__cgDeferredPrompt) {
+        setDeferredPrompt(window.__cgDeferredPrompt);
+        setShowInstallBtn(true);
+      }
+    };
+    window.addEventListener("cg-install-ready", onReady);
+
+    const onInstalled = () => {
+      window.__cgDeferredPrompt = null;
+      setShowInstallBtn(false);
+      setDeferredPrompt(null);
+      setIsStandalone(true);
+    };
+    window.addEventListener("appinstalled", onInstalled);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+      window.removeEventListener("cg-install-ready", onReady);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
   }, []);
 
   useEffect(() => {

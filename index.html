@@ -1,6 +1,51 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <!--
+  Add this INSIDE the <head> of your public/index.html, BEFORE the
+  <script> tag that loads your bundled React app (usually the last thing
+  before </body>, or wherever your bundler injects the main script).
+
+  Why: `beforeinstallprompt` can fire before React finishes mounting.
+  This tiny script runs immediately as the page parses, so it can never
+  miss the event — it stashes it on window and fires a custom event that
+  App.jsx listens for once it's ready.
+-->
+<script>
+  window.__cgDeferredPrompt = null;
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    window.__cgDeferredPrompt = e;
+    window.dispatchEvent(new Event('cg-install-ready'));
+  });
+</script>
+
+<!--
+  Also make sure your <head> has a valid manifest link and that you've
+  registered a service worker somewhere in your app's startup code
+  (e.g. index.js):
+
+  <link rel="manifest" href="/manifest.json" />
+
+  And a manifest.json in your public/ folder with at minimum:
+  {
+    "name": "Campus Connect",
+    "short_name": "CampusConnect",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#FAF6EC",
+    "theme_color": "#060A12",
+    "icons": [
+      { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+      { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+    ]
+  }
+
+  Without a valid manifest + a registered service worker + HTTPS,
+  beforeinstallprompt will NEVER fire on Android/Desktop, no matter what
+  the React code does — check Chrome DevTools → Application → Manifest
+  for the exact reason if the button still doesn't show after this fix.
+-->
     <link rel="manifest" href="/manifest.json" />
 <meta name="theme-color" content="#060A12" />
 <link rel="apple-touch-icon" href="/icons/icon-192.png" />
