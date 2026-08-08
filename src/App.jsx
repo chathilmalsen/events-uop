@@ -855,7 +855,7 @@ function LoginModal({ onClose, onLoginSuccess }) {
         </Field>
         <div className="flex justify-end gap-2 mt-6">
           <button type="button" onClick={onClose} className="px-4 py-2 rounded-full text-sm font-medium" style={{ color: THEME.inkSoft }}>Cancel</button>
-          <button type="submit" disabled={submitting} className="px-5 py-2 rounded-full text-sm font-semibold disabled:opacity-60" style={{ backgroundColor: THEME.ink, color: THEME.cream }}>
+          <button type="submit" disabled={submitting} className="px-5 py-2 rounded-full text-sm font-semibold disabled:opacity-60" style={{ backgroundColor: THEME.ink, color: "#FFFFFF" }}>
             {submitting ? "Signing in…" : "Sign In"}
           </button>
         </div>
@@ -2085,7 +2085,7 @@ function UserAuthModal({ onClose, onSuccess }) {
             type="submit"
             disabled={submitting}
             className="px-5 py-2 rounded-full text-sm font-semibold disabled:opacity-60"
-            style={{ backgroundColor: THEME.ink, color: THEME.cream }}
+            style={{ backgroundColor: THEME.ink, color: "#FFFFFF" }}
           >
             {submitting ? "Logging in…" : "Log In"}
           </button>
@@ -2395,6 +2395,7 @@ function LostFoundSection({ tickets, loading, authUser, isAdmin, onOpenTicket, o
           onSignIn={onRequestAuth}
           onSignOut={onSignOut}
           className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full"
+          style={{ color: "#FFFFFF" }}
         />
       </div>
       <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: "clamp(22px, 4.5vw, 34px)", color: THEME.ink, fontWeight: 600, lineHeight: 1.15, maxWidth: 720 }}>
@@ -2627,13 +2628,14 @@ function UserAuthAction({ authUser, onSignIn, onSignOut, className = "", mobile 
     <button
       onClick={signedIn ? onSignOut : onSignIn}
       className={className}
+      style={{ color: "#FFFFFF" }}
       title={signedIn ? "Log Out" : "Sign In"}
       aria-label={signedIn ? "Log Out" : "Sign In"}
     >
       {signedIn ? (
-        <LogOut className={mobile ? "mobile-auth-icon" : ""} size={mobile ? 11 : 14} />
+        <LogOut className={mobile ? "mobile-auth-icon" : ""} size={mobile ? 11 : 14} color="#FFFFFF" />
       ) : (
-        <LogIn className={mobile ? "mobile-auth-icon" : ""} size={mobile ? 11 : 14} />
+        <LogIn className={mobile ? "mobile-auth-icon" : ""} size={mobile ? 11 : 14} color="#FFFFFF" />
       )}
       <span>{signedIn ? "Log Out" : "Sign In"}</span>
     </button>
@@ -3538,7 +3540,7 @@ const addEvent = async (ev) => {
               <button
                 onClick={handleAdminLogout}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold"
-                style={{ backgroundColor: "#E5657F26", color: "#FF9DB0" }}
+                style={{ backgroundColor: "#E5657F26", color: "#FFFFFF" }}
               >
                 <LogOut size={13} />
                 <span>Admin Active</span>
@@ -3738,7 +3740,7 @@ const addEvent = async (ev) => {
                   onClick={handleAdminLogout}
                   aria-label="Log out of admin"
                   className="p-1 rounded-full text-[10px]"
-                  style={{ backgroundColor: "#E5657F26", color: "#FF9DB0" }}
+                  style={{ backgroundColor: "#E5657F26", color: "#FFFFFF" }}
                 >
                   <LogOut size={11} />
                 </button>
@@ -3750,7 +3752,7 @@ const addEvent = async (ev) => {
                   style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", color: THEME.headerText }}
                   title="Admin Login"
                 >
-                  <ShieldCheck size={11} />
+                  <ShieldCheck size={11} color="#FFFFFF" />
                 </button>
               )}
             </div>
