@@ -1968,8 +1968,8 @@ function IntroVideo({ onFinish }) {
 // the admin login above — this just isn't restricted to ADMIN_EMAIL. Any
 // student can create an account here to file or track Lost & Found /
 // Facility Issue reports.
-function UserAuthModal({ onClose, onSuccess }) {
-  const [mode, setMode] = useState("login"); // "login" | "signup"
+function UserAuthModal({ onClose, onSuccess, initialMode = "login" }) {
+  const [mode, setMode] = useState(initialMode); // "login" | "signup"
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -2672,6 +2672,8 @@ export default function App() {
   const [showAdd, setShowAdd] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [showUserModal, setShowUserModal] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authInitialMode, setAuthInitialMode] = useState("login");
   const [editingEvent, setEditingEvent] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
 
@@ -3493,6 +3495,32 @@ const addEvent = async (ev) => {
              )}
 
             <button
+              onClick={() => {
+                setAuthInitialMode("login");
+                setShowAuthModal(true);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors hover:bg-white/10"
+              style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", color: THEME.headerText }}
+              title="Sign in"
+            >
+              <LogIn size={14} color={THEME.headerText} />
+              <span>Sign In</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setAuthInitialMode("signup");
+                setShowAuthModal(true);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors hover:bg-white/10"
+              style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", color: THEME.headerText }}
+              title="Create a new account"
+            >
+              <UserPlus size={14} color={THEME.headerText} />
+              <span>Create Account</span>
+            </button>
+
+            <button
               onClick={() => setShowAdd(true)}
               className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-transform active:scale-95 shadow-md hover:shadow-lg"
               style={{color: "#dfe0e1"  }}
@@ -3527,6 +3555,32 @@ const addEvent = async (ev) => {
           <span>Install App</span>
           </button>
         )}
+
+            <button
+              onClick={() => {
+                setAuthInitialMode("login");
+                setShowAuthModal(true);
+              }}
+              className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors hover:bg-white/10 w-full"
+              style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", color: THEME.headerText }}
+              title="Sign in"
+            >
+              <LogIn size={14} color={THEME.headerText} />
+              <span>Sign In</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setAuthInitialMode("signup");
+                setShowAuthModal(true);
+              }}
+              className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors hover:bg-white/10 w-full"
+              style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", color: THEME.headerText }}
+              title="Create a new account"
+            >
+              <UserPlus size={14} color={THEME.headerText} />
+              <span>Create New Account</span>
+            </button>
 
             <button
               onClick={() => setShowAdd(true)}
@@ -4311,6 +4365,13 @@ const addEvent = async (ev) => {
       <BottomNav section={section} setSection={setSection} isAdmin={isAdmin} />
 
       {showLogin && <LoginModal onClose={() => setShowLogin(false)} onLoginSuccess={() => setIsAdmin(true)} />}
+      {showAuthModal && (
+        <UserAuthModal
+          initialMode={authInitialMode}
+          onClose={() => setShowAuthModal(false)}
+          onSuccess={() => setShowAuthModal(false)}
+        />
+      )}
       {showUserModal && <SetUserModal onClose={() => setShowUserModal(false)} onSave={handleSaveUserName} currentName={currentUser} />}
       {showAdd && <AddOrEditEventModal onClose={() => setShowAdd(false)} onSubmit={addEvent} currentUser={currentUser} events={events} />}
       {editingEvent && <AddOrEditEventModal onClose={() => setEditingEvent(null)} onSubmit={updateEvent} initialData={editingEvent} currentUser={currentUser} events={events} />}
