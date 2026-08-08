@@ -59,6 +59,7 @@ import {
   updateProfile,
   signInAnonymously,
   sendEmailVerification,
+  reload,
 } from "firebase/auth";
 
 
@@ -791,7 +792,13 @@ function LoginModal({ onClose, onLoginSuccess }) {
     setSubmitting(true);
     try {
       const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
-      if (cred.user.email !== ADMIN_EMAIL || !cred.user.emailVerified) {
+      try {
+        await reload(cred.user);
+      } catch (refreshErr) {
+        console.warn("Could not refresh admin verification state:", refreshErr);
+      }
+      const adminUser = auth.currentUser || cred.user;
+      if (adminUser.email !== ADMIN_EMAIL || !adminUser.emailVerified) {
         await signOut(auth);
         setError(cred.user.email === ADMIN_EMAIL && !cred.user.emailVerified
           ? "Please verify the admin email before signing in."
@@ -1995,6 +2002,12 @@ function UserAuthModal({ onClose, onSuccess }) {
       } else {
         const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
         user = cred.user;
+        try {
+          await reload(user);
+          user = auth.currentUser || user;
+        } catch (refreshErr) {
+          console.warn("Could not refresh email verification state:", refreshErr);
+        }
       }
       if (!user.emailVerified) {
         try { await sendEmailVerification(user); } catch {}
@@ -2841,11 +2854,42 @@ useEffect(() => {
       }
       return; // onAuthStateChanged fires again once anon sign-in resolves
     }
-    setIsAdmin(Boolean(user.email === ADMIN_EMAIL && user.emailVerified));
-    setAuthUser(user);
+
+    try {
+      // Firebase can keep a cached emailVerified value after the user
+      // verifies their email in another browser/tab. Refresh the user
+      // record before storing it in React state.
+      await reload(user);
+    } catch (err) {
+      console.warn("Could not refresh Firebase auth state:", err);
+    }
+
+    const refreshedUser = auth.currentUser || user;
+    setIsAdmin(Boolean(refreshedUser.email === ADMIN_EMAIL && refreshedUser.emailVerified));
+    setAuthUser(refreshedUser);
   });
   return () => unsubscribe();
 }, []);
+
+  // Always refresh Firebase's current user before a protected write.
+  // This fixes the common case where a user verifies their email while
+  // Campus Connect is already open and the cached user still says
+  // emailVerified === false.
+  const getFreshAuthUser = async () => {
+    const user = auth.currentUser;
+    if (!user) return null;
+
+    try {
+      await reload(user);
+    } catch (err) {
+      console.warn("Could not refresh Firebase user:", err);
+    }
+
+    const refreshedUser = auth.currentUser || user;
+    setAuthUser(refreshedUser);
+    setIsAdmin(Boolean(refreshedUser.email === ADMIN_EMAIL && refreshedUser.emailVerified));
+    return refreshedUser;
+  };
 
   const handleAdminLogout = async () => {
     await signOut(auth);
@@ -2872,17 +2916,23 @@ useEffect(() => {
 
 const addTicket = async (form) => {
   try {
-    if (!authUser || authUser.isAnonymous) {
+    const currentUser = await getFreshAuthUser();
+
+    if (!currentUser || currentUser.isAnonymous) {
       setShowUserAuth(true);
       alert("Please sign in to submit a report.");
       return;
     }
-    if (!authUser.emailVerified) {
-      alert("Please verify your email before submitting a report.");
+
+    if (!currentUser.emailVerified) {
+      alert(
+        "Please verify your email before submitting a report.\n\n" +
+        "If you already clicked the verification link, try again now so Campus Connect can refresh your account status."
+      );
       return;
     }
 
-    const uid = authUser.uid;
+    const uid = currentUser.uid;
     const ticketRef = doc(collection(db, "tickets"));
     const privateRef = doc(ticketRef, "private", "contact");
     const limitRef = doc(db, "postLimits", uid);
@@ -2895,14 +2945,14 @@ const addTicket = async (form) => {
       location: (form.location || "").trim(),
       photoUrl: form.photoUrl || "",
       status: "open",
-      reportedBy: authUser.displayName || "User",
+      reportedBy: currentUser.displayName || "User",
       reporterUid: uid,
       createdAt: Date.now(),
     });
 
     batch.set(privateRef, {
       ownerUid: uid,
-      reporterEmail: authUser.email || "",
+      reporterEmail: currentUser.email || "",
       contact: (form.contact || "").trim(),
     });
 
@@ -2989,17 +3039,23 @@ const addTicket = async (form) => {
 
 const addEvent = async (ev) => {
   try {
-    if (!authUser || authUser.isAnonymous) {
+    const currentUser = await getFreshAuthUser();
+
+    if (!currentUser || currentUser.isAnonymous) {
       setShowUserAuth(true);
       alert("Please sign in to post an event.");
       return;
     }
-    if (!authUser.emailVerified) {
-      alert("Please verify your email before posting an event.");
+
+    if (!currentUser.emailVerified) {
+      alert(
+        "Please verify your email before posting an event.\n\n" +
+        "If you already clicked the verification link, try again now so Campus Connect can refresh your account status."
+      );
       return;
     }
 
-    const uid = authUser.uid;
+    const uid = currentUser.uid;
 
     if (ev.postedBy) {
       handleSaveUserName(ev.postedBy);
@@ -3050,12 +3106,13 @@ const addEvent = async (ev) => {
   };
 
   const addComment = async (eventId, comment) => {
-    if (!authUser || authUser.isAnonymous) {
+    const currentUser = await getFreshAuthUser();
+    if (!currentUser || currentUser.isAnonymous) {
       setShowUserAuth(true);
       alert("Please sign in to comment.");
       return;
     }
-    if (!authUser.emailVerified) {
+    if (!currentUser.emailVerified) {
       alert("Please verify your email before commenting.");
       return;
     }
@@ -3072,19 +3129,20 @@ const addEvent = async (ev) => {
   // Runs as a Firestore transaction so two people reacting to the same
   // comment at nearly the same instant can't silently overwrite each other.
   const reactToComment = async (eventId, commentId, emoji) => {
-    if (!authUser || authUser.isAnonymous) {
+    const currentUser = await getFreshAuthUser();
+    if (!currentUser || currentUser.isAnonymous) {
       setShowUserAuth(true);
       alert("Please sign in to react to a comment.");
       return;
     }
-    if (!authUser.emailVerified) {
+    if (!currentUser.emailVerified) {
       alert("Please verify your email before reacting.");
       return;
     }
     if (!REACTION_EMOJIS.includes(emoji)) return;
 
     try {
-      const reactionId = `${eventId}_${commentId}_${encodeURIComponent(emoji)}_${authUser.uid}`;
+      const reactionId = `${eventId}_${commentId}_${encodeURIComponent(emoji)}_${currentUser.uid}`;
       const reactionRef = doc(db, "commentReactions", reactionId);
       await runTransaction(db, async (transaction) => {
         const snap = await transaction.get(reactionRef);
@@ -3095,7 +3153,7 @@ const addEvent = async (ev) => {
             eventId,
             commentId,
             emoji,
-            uid: authUser.uid,
+            uid: currentUser.uid,
             createdAt: serverTimestamp(),
           });
         }
