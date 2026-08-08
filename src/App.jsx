@@ -52,10 +52,14 @@ import {
   createUserWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
-  updateProfile
+  updateProfile,
+  signInAnonymously,
 } from "firebase/auth";
 
 import {serverTimestamp } from "firebase/firestore";
+
+const isRealUser = Boolean(authUser && !authUser.isAnonymous);
+const realUser = isRealUser ? authUser : null;
 
 const ADMIN_EMAIL = "ktchathilmalsencm@gmail.com";
 const INSTAGRAM_URL = "https://www.instagram.com/chathilmkt?igsh=MTgwZGdlbnVwMzQzeA%3D%3D&utm_source=qr";
@@ -1271,12 +1275,14 @@ function CommentItem({ c, replies, onReply, onReact, anonId }) {
   );
 }
 
-function EventDetailModal({ ev, onClose, onComment, onReact, onDelete, onEdit, isAdmin, currentUser, onPromptSetUser, isBookmarked, onToggleBookmark, isLiked, onToggleLike }) {
+function EventDetailModal({ ev, onClose, onComment, onReact, onDelete, onEdit, isAdmin, currentUser, authUser, onPromptSetUser, isBookmarked, onToggleBookmark, isLiked, onToggleLike }) {
   const [name, setName] = useState(currentUser || "");
   const [text, setText] = useState("");
   const [commentSort, setCommentSort] = useState("newest");
   const [shareOpen, setShareOpen] = useState(false);
   const [reminderOpen, setReminderOpen] = useState(false);
+  const isAuthor = Boolean(authUser && ev.posterUid && authUser.uid === ev.posterUid);
+  const canModify = isAdmin || isAuthor;
   const anonId = getAnonId();
   const f = facultyOf(ev.faculty);
   const c = categoryOf(ev.category);
@@ -2786,13 +2792,21 @@ export default function App() {
     }
   }, [loading]);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setIsAdmin(Boolean(user && user.email === ADMIN_EMAIL));
-      setAuthUser(user || null);
-    });
-    return () => unsubscribe();
-  }, []);
+useEffect(() => {
+  const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      try {
+        await signInAnonymously(auth);
+      } catch (err) {
+        console.error("Anonymous sign-in failed:", err);
+      }
+      return; // onAuthStateChanged fires again once anon sign-in resolves
+    }
+    setIsAdmin(Boolean(user.email === ADMIN_EMAIL));
+    setAuthUser(user);
+  });
+  return () => unsubscribe();
+}, []);
 
   const handleAdminLogout = async () => {
     await signOut(auth);
@@ -2817,22 +2831,22 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  const addTicket = async (form) => {
-    try {
-      await addDoc(collection(db, "tickets"), {
-        ...form,
-        status: "open",
-        reportedBy: authUser?.displayName || authUser?.email || "Anonymous",
-        reporterUid: authUser?.uid || null,
-        reporterEmail: authUser?.email || null,
-        createdAt: Date.now(),
-      });
-      setShowReportTicket(false);
-    } catch (error) {
-      console.error("Error adding ticket:", error);
-      alert("Could not submit report. Please try again.");
-    }
-  };
+const addTicket = async (form) => {
+  try {
+    await addDoc(collection(db, "tickets"), {
+      ...form,
+      status: "open",
+      reportedBy: realUser?.displayName || realUser?.email || "Anonymous",
+      reporterUid: realUser?.uid || null,
+      reporterEmail: realUser?.email || null,
+      createdAt: Date.now(),
+    });
+    setShowReportTicket(false);
+  } catch (error) {
+    console.error("Error adding ticket:", error);
+    alert("Could not submit report. Please try again.");
+  }
+};
 
   const updateTicketStatus = async (ticketId, status) => {
     try {
@@ -2871,24 +2885,23 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  const addEvent = async (ev) => {
-    try {
-      // postedBy is now optional too — only remember it as the author name
-      // for next time if the user actually filled it in.
-      if (ev.postedBy) handleSaveUserName(ev.postedBy);
-      await addDoc(collection(db, "events"), {
-        ...ev,
-        views: 0,
-        likes: [],
-        comments: [],
-        createdAt: Date.now(),
-      });
-      setShowAdd(false);
-    } catch (error) {
-      console.error("Error adding event:", error);
-      alert("Could not save event. Please try again.");
-    }
-  };
+const addEvent = async (ev) => {
+  try {
+    if (ev.postedBy) handleSaveUserName(ev.postedBy);
+    await addDoc(collection(db, "events"), {
+      ...ev,
+      posterUid: authUser?.uid || null,   // anonymous uid is fine here — anyone can post
+      views: 0,
+      likes: [],
+      comments: [],
+      createdAt: Date.now(),
+    });
+    setShowAdd(false);
+  } catch (error) {
+    console.error("Error adding event:", error);
+    alert("Could not save event. Please try again.");
+  }
+};
 
   const updateEvent = async (ev) => {
     try {
@@ -3435,7 +3448,7 @@ export default function App() {
         <LostFoundSection
           tickets={tickets}
           loading={ticketsLoading}
-          authUser={authUser}
+          authUser={realUser}
           isAdmin={isAdmin}
           onOpenTicket={setSelectedTicket}
           onRequestAuth={() => setShowUserAuth(true)}
@@ -4078,23 +4091,24 @@ export default function App() {
       {showAdd && <AddOrEditEventModal onClose={() => setShowAdd(false)} onSubmit={addEvent} currentUser={currentUser} events={events} />}
       {editingEvent && <AddOrEditEventModal onClose={() => setEditingEvent(null)} onSubmit={updateEvent} initialData={editingEvent} currentUser={currentUser} events={events} />}
 
-      {selectedEvent && (
-        <EventDetailModal
-          ev={events.find((e) => e.id === selectedEvent.id) || selectedEvent}
-          onClose={() => setSelectedEvent(null)}
-          onComment={addComment}
-          onReact={reactToComment}
-          onDelete={deleteEvent}
-          onEdit={(ev) => setEditingEvent(ev)}
-          isAdmin={isAdmin}
-          currentUser={currentUser}
-          onPromptSetUser={() => setShowUserModal(true)}
-          isBookmarked={bookmarks.includes(selectedEvent.id)}
-          onToggleBookmark={toggleBookmark}
-          isLiked={((events.find((e) => e.id === selectedEvent.id) || selectedEvent).likes || []).includes(anonId)}
-          onToggleLike={toggleLike}
-        />
-      )}
+{selectedEvent && (
+  <EventDetailModal
+    ev={events.find((e) => e.id === selectedEvent.id) || selectedEvent}
+    onClose={() => setSelectedEvent(null)}
+    onComment={addComment}
+    onReact={reactToComment}
+    onDelete={deleteEvent}
+    onEdit={(ev) => setEditingEvent(ev)}
+    isAdmin={isAdmin}
+    currentUser={currentUser}
+    authUser={authUser}                 // add this line
+    onPromptSetUser={() => setShowUserModal(true)}
+    isBookmarked={bookmarks.includes(selectedEvent.id)}
+    onToggleBookmark={toggleBookmark}
+    isLiked={((events.find((e) => e.id === selectedEvent.id) || selectedEvent).likes || []).includes(anonId)}
+    onToggleLike={toggleLike}
+  />
+)}
 
       {showUserAuth && <UserAuthModal onClose={() => setShowUserAuth(false)} onSuccess={() => {}} />}
       {showReportTicket && (
@@ -4112,7 +4126,7 @@ export default function App() {
           onUpdateStatus={updateTicketStatus}
           onDelete={deleteTicket}
           isAdmin={isAdmin}
-          authUser={authUser}
+          authUser={realUser} 
         />
       )}
 
