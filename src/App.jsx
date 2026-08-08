@@ -2087,7 +2087,7 @@ function UserAuthModal({ onClose, onSuccess }) {
             className="px-5 py-2 rounded-full text-sm font-semibold disabled:opacity-60"
             style={{ backgroundColor: THEME.ink, color: THEME.cream }}
           >
-            {submitting ? "Signing in…" : "Sign In"}
+            {submitting ? "Logging in…" : "Log In"}
           </button>
         </div>
       </form>
@@ -2390,15 +2390,12 @@ function LostFoundSection({ tickets, loading, authUser, isAdmin, onOpenTicket, o
         <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest" style={{ color: THEME.goldDeep, fontFamily: "'IBM Plex Mono', monospace" }}>
           LOST &amp; FOUND · FACILITY ISSUES
         </p>
-        {authUser ? (
-          <button onClick={onSignOut} className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ color: THEME.inkSoft, border: `1px solid ${THEME.line}` }}>
-            <User size={12} /> {authUser.displayName || authUser.email} <LogOut size={12} />
-          </button>
-        ) : (
-          <button onClick={onRequestAuth} className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ color: THEME.ink, border: `1px solid ${THEME.line}` }}>
-            <LogIn size={12} /> Sign in
-          </button>
-        )}
+        <UserAuthAction
+          authUser={authUser}
+          onSignIn={onRequestAuth}
+          onSignOut={onSignOut}
+          className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full"
+        />
       </div>
       <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: "clamp(22px, 4.5vw, 34px)", color: THEME.ink, fontWeight: 600, lineHeight: 1.15, maxWidth: 720 }}>
         Lost something? Found something? Something broken on campus?
@@ -2615,6 +2612,31 @@ function BottomNav({ section, setSection }) {
         })}
       </div>
     </div>
+  );
+}
+
+
+// Shared regular-user authentication action used by every header/section
+// variant. Anonymous Firebase auth is treated as "not signed in" so the
+// public UI always starts with "Sign In", while a verified real user gets
+// a single "Log Out" action.
+function UserAuthAction({ authUser, onSignIn, onSignOut, className = "", mobile = false }) {
+  const signedIn = Boolean(authUser && !authUser.isAnonymous);
+
+  return (
+    <button
+      onClick={signedIn ? onSignOut : onSignIn}
+      className={className}
+      title={signedIn ? "Log Out" : "Sign In"}
+      aria-label={signedIn ? "Log Out" : "Sign In"}
+    >
+      {signedIn ? (
+        <LogOut className={mobile ? "mobile-auth-icon" : ""} size={mobile ? 11 : 14} />
+      ) : (
+        <LogIn className={mobile ? "mobile-auth-icon" : ""} size={mobile ? 11 : 14} />
+      )}
+      <span>{signedIn ? "Log Out" : "Sign In"}</span>
+    </button>
   );
 }
 
@@ -3324,9 +3346,8 @@ const addEvent = async (ev) => {
         select, input, textarea, button { font-family: 'Inter', sans-serif; }
 
         /* Mobile header controls -------------------------------------------------
-           Portrait: Install and Sign In remain side-by-side.
-           Landscape: both controls become substantially smaller to preserve
-           horizontal room. The + control deliberately keeps the desktop styling. */
+           Portrait + landscape: Install and authentication remain side-by-side
+           with the same sizing/placement. The + control keeps its own styling. */
         .mobile-header-actions {
           min-width: max-content;
         }
@@ -3345,24 +3366,10 @@ const addEvent = async (ev) => {
           background: transparent;
           border: 0;
         }
+        /* Mobile landscape intentionally uses the same Install / Sign In
+           sizing and placement as mobile portrait. The only orientation-specific
+           adjustment retained here is the compact + Post Event control. */
         @media (max-width: 639px) and (orientation: landscape) {
-          .mobile-header-actions {
-            gap: 4px;
-          }
-          .mobile-auth-actions {
-            gap: 3px;
-          }
-          .mobile-auth-button {
-            min-width: 48px;
-            min-height: 19px;
-            padding: 2px 5px;
-            font-size: 8px !important;
-            gap: 2px;
-          }
-          .mobile-auth-icon {
-            width: 9px;
-            height: 9px;
-          }
           .mobile-post-event {
             padding: 5px 7px;
           }
@@ -3559,15 +3566,12 @@ const addEvent = async (ev) => {
              </button>
              )}
 
-            <button
-              onClick={() => setShowUserAuth(true)}
+            <UserAuthAction
+              authUser={realUser}
+              onSignIn={() => setShowUserAuth(true)}
+              onSignOut={handleUserSignOut}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors hover:bg-white/10"
-              style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", color: THEME.headerText }}
-              title="Sign in"
-            >
-              <LogIn size={14} color={THEME.headerText} />
-              <span>Sign In</span>
-            </button>
+            />
 
             <button
               onClick={() => setShowAdd(true)}
@@ -3594,9 +3598,9 @@ const addEvent = async (ev) => {
               </div>
             </div>
 
-            {/* MOBILE ACTIONS: Install + Sign In stay side-by-side on portrait and landscape.
-                The + Post Event control intentionally uses the same visual treatment
-                as the desktop header so it remains consistent in every viewport. */}
+            {/* MOBILE ACTIONS: Install + authentication stay side-by-side in both
+                portrait and landscape. Landscape deliberately follows the same
+                sizing/placement as portrait. The + Post Event control remains separate. */}
             <div className="mobile-header-actions flex items-center gap-1.5 flex-shrink-0">
               <div className="mobile-auth-actions flex items-center gap-1">
                 {canShowInstallButton && (
@@ -3611,15 +3615,13 @@ const addEvent = async (ev) => {
                   </button>
                 )}
 
-                <button
-                  onClick={() => setShowUserAuth(true)}
+                <UserAuthAction
+                  authUser={realUser}
+                  onSignIn={() => setShowUserAuth(true)}
+                  onSignOut={handleUserSignOut}
+                  mobile
                   className="mobile-auth-button flex items-center justify-center gap-1 rounded-full text-[9px] leading-none font-semibold border transition-colors hover:bg-white/10 active:scale-95"
-                  style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", color: THEME.headerText }}
-                  title="Sign in"
-                >
-                  <LogIn className="mobile-auth-icon" size={11} color={THEME.headerText} />
-                  <span>Sign In</span>
-                </button>
+                />
               </div>
 
               {/* Keep this + button visually identical to the desktop Post Event control. */}
