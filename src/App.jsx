@@ -2623,6 +2623,43 @@ export default function App() {
   // frequency (every open / once per tab session / once ever) is
   // controlled by INTRO_VIDEO_FREQUENCY above. If no video is configured
   // for ANY device/orientation, skip the intro entirely.
+
+  // ✅ ADD HERE (top of App component, before return)
+
+const isMobile = window.innerWidth < 640;
+const isLandscape = window.innerWidth > window.innerHeight;
+
+const baseBtn =
+  "flex items-center justify-center gap-2 rounded-full font-semibold transition-all";
+
+const desktopBtn = "px-5 py-2 text-sm";
+const mobilePortraitBtn = "px-3 py-1.5 text-xs flex-1";
+const mobileLandscapeBtn = "px-2 py-1 text-[10px]";
+
+const baseBtn =
+  "font-semibold rounded-full transition-all flex items-center justify-center";
+
+const desktopBtn = "px-4 py-2 text-sm";
+
+const mobilePortraitBtn = "flex-1 px-3 py-2 text-xs";
+
+const mobileLandscapeBtn = "px-2 py-1 text-[10px]";
+
+const [isMobile, setIsMobile] = useState(false);
+const [isLandscape, setIsLandscape] = useState(false);
+
+useEffect(() => {
+  const handleResize = () => {
+    const mobile = window.innerWidth < 640;
+    setIsMobile(mobile);
+    setIsLandscape(window.innerWidth > window.innerHeight);
+  };
+
+  handleResize();
+  window.addEventListener("resize", handleResize);
+  return () => window.removeEventListener("resize", handleResize);
+}, []);
+
   const [showIntro, setShowIntro] = useState(() => {
     const anyVideoConfigured = Object.values(INTRO_VIDEOS).some((v) => v.src);
     if (!anyVideoConfigured) return false;
@@ -3319,6 +3356,56 @@ const addEvent = async (ev) => {
           .shiny-word { animation: none !important; }
         }
         select, input, textarea, button { font-family: 'Inter', sans-serif; }
+        select, input, textarea, button { font-family: 'Inter', sans-serif; }
+
+        /* Mobile header controls -------------------------------------------------
+           Portrait: Install and Sign In remain side-by-side.
+           Landscape: both controls become substantially smaller to preserve
+           horizontal room. The + control deliberately keeps the desktop styling. */
+        .mobile-header-actions {
+          min-width: max-content;
+        }
+        .mobile-auth-button {
+          min-width: 62px;
+          min-height: 24px;
+          padding: 4px 7px;
+        }
+        .mobile-auth-icon {
+          width: 11px;
+          height: 11px;
+          flex-shrink: 0;
+        }
+        .mobile-post-event {
+          padding: 8px 12px;
+          background: transparent;
+          border: 0;
+        }
+        @media (max-width: 639px) and (orientation: landscape) {
+          .mobile-header-actions {
+            gap: 4px;
+          }
+          .mobile-auth-actions {
+            gap: 3px;
+          }
+          .mobile-auth-button {
+            min-width: 48px;
+            min-height: 19px;
+            padding: 2px 5px;
+            font-size: 8px !important;
+            gap: 2px;
+          }
+          .mobile-auth-icon {
+            width: 9px;
+            height: 9px;
+          }
+          .mobile-post-event {
+            padding: 5px 7px;
+          }
+          .mobile-post-event .text-6xl {
+            font-size: 2.25rem;
+            line-height: 1;
+          }
+        }
         button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
           outline: 2px solid #00b8d4;
           outline-offset: 2px;
@@ -3542,46 +3629,43 @@ const addEvent = async (ev) => {
               </div>
             </div>
 
-            {/* MOBILE ACTIONS: compact vertical Install / Sign In stack beside + Post Event */}
-            <div className="flex items-center gap-1.5 flex-shrink-0">
-              <div className="flex flex-col gap-1">
+            {/* MOBILE ACTIONS: Install + Sign In stay side-by-side on portrait and landscape.
+                The + Post Event control intentionally uses the same visual treatment
+                as the desktop header so it remains consistent in every viewport. */}
+            <div className="mobile-header-actions flex items-center gap-1.5 flex-shrink-0">
+              <div className="mobile-auth-actions flex items-center gap-1">
                 {canShowInstallButton && (
                   <button
                     onClick={handleInstallClick}
-                    className="flex items-center justify-center gap-1 px-2 py-1 rounded-full text-[9px] leading-none font-semibold border transition-colors hover:bg-white/10 active:scale-95"
-                    style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", color: THEME.headerText, minWidth: 72, minHeight: 25 }}
+                    className="mobile-auth-button flex items-center justify-center gap-1 rounded-full text-[9px] leading-none font-semibold border transition-colors hover:bg-white/10 active:scale-95"
+                    style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", color: THEME.headerText }}
                     title="Install App"
                   >
-                    <Download size={11} color={THEME.headerText} />
+                    <Download className="mobile-auth-icon" size={11} color={THEME.headerText} />
                     <span>Install</span>
                   </button>
                 )}
 
                 <button
                   onClick={() => setShowUserAuth(true)}
-                  className="flex items-center justify-center gap-1 px-2 py-1 rounded-full text-[9px] leading-none font-semibold border transition-colors hover:bg-white/10 active:scale-95"
-                  style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", color: THEME.headerText, minWidth: 72, minHeight: 25 }}
+                  className="mobile-auth-button flex items-center justify-center gap-1 rounded-full text-[9px] leading-none font-semibold border transition-colors hover:bg-white/10 active:scale-95"
+                  style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", color: THEME.headerText }}
                   title="Sign in"
                 >
-                  <LogIn size={11} color={THEME.headerText} />
+                  <LogIn className="mobile-auth-icon" size={11} color={THEME.headerText} />
                   <span>Sign In</span>
                 </button>
               </div>
 
+              {/* Keep this + button visually identical to the desktop Post Event control. */}
               <button
                 onClick={() => setShowAdd(true)}
-                className="flex items-center justify-center rounded-full text-xl font-semibold transition-transform active:scale-95 shadow-sm flex-shrink-0"
-                style={{
-                  width: 42,
-                  height: 42,
-                  color: "#dfe0e1",
-                  backgroundColor: "rgba(255,255,255,0.08)",
-                  border: "1px solid rgba(255,255,255,0.2)"
-                }}
+                className="mobile-post-event flex items-center gap-1.5 rounded-full text-sm font-semibold transition-transform active:scale-95 shadow-md hover:shadow-lg flex-shrink-0"
+                style={{ color: "#dfe0e1" }}
                 title="Post Event"
                 aria-label="Post Event"
               >
-                +
+                <span className="text-6xl">+</span>
               </button>
             </div>
           </div>
