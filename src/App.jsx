@@ -2920,33 +2920,31 @@ const addEvent = async (ev) => {
       handleSaveUserName(ev.postedBy);
     }
 
-    const eventRef = doc(collection(db, "events"));
-    const limitRef = doc(db, "postLimits", uid);
-    const batch = writeBatch(db);
-
-    batch.set(eventRef, {
+    await addDoc(collection(db, "events"), {
       ...ev,
+
       posterUid: uid,
+
       views: 0,
       likes: [],
       comments: [],
       reports: [],
       flagged: false,
+
       createdAt: Date.now(),
     });
 
-    batch.set(limitRef, {
-      lastPostAt: serverTimestamp(),
-    });
-
-    await batch.commit();
     setShowAdd(false);
+
   } catch (error) {
-    console.error("Error adding event:", error);
+    console.error("ERROR ADDING EVENT:", error);
+    console.error("Firebase error code:", error?.code);
+    console.error("Firebase error message:", error?.message);
+
     alert(
-      error?.code
-        ? `Could not save event.\n\nFirebase error: ${error.code}`
-        : "Could not save event. Please try again."
+      `Could not save event.\n\n` +
+      `Firebase error: ${error?.code || "unknown"}\n\n` +
+      `${error?.message || "Permission denied"}`
     );
   }
 };
