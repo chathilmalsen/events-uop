@@ -7,7 +7,7 @@ import {
   ExternalLink, Sun, Moon, Monitor, Copy, Check, Reply, Bell,
   SlidersHorizontal, Ticket, Globe, MapPinned, Timer, QrCode,
   PackageSearch, Wrench, ClipboardList, LogIn, UserPlus, Send,
-  CheckCircle2, CircleDot, Loader2, Home
+  CheckCircle2, CircleDot, Loader2, Home, Volume2, VolumeX
 } from "lucide-react";
 
 import { motion } from "framer-motion";
@@ -60,6 +60,19 @@ import {serverTimestamp } from "firebase/firestore";
 const ADMIN_EMAIL = "ktchathilmalsencm@gmail.com";
 const INSTAGRAM_URL = "https://www.instagram.com/chathilmkt?igsh=MTgwZGdlbnVwMzQzeA%3D%3D&utm_source=qr";
 const YOUTUBE_URL = "https://youtube.com/@chathilmalsen?si=ogQ5UF4PWG1ktGfY";
+
+// --- INTRO VIDEO CONFIG ---
+// Drop your intro video file into the /public folder (or wherever your
+// build serves static assets from) and point this at it. Also drop a
+// poster/thumbnail image next to it so there's something visible while the
+// video is still loading. Both are optional — if INTRO_VIDEO_SRC is empty,
+// the intro screen is skipped entirely.
+const INTRO_VIDEO_SRC = "/intro-video.mp4";
+const INTRO_VIDEO_POSTER = "/intro-poster.jpg";
+// "session" -> show once per browser tab session (recommended)
+// "always"  -> show every single time the app/site is opened or refreshed
+// "once"    -> show only the very first time this browser ever opens the app
+const INTRO_VIDEO_FREQUENCY = "session";
 
 const FACULTIES = [
   { id: "engineering", name: "Faculty of Engineering", short: "FOE", color: "#356a9f" },
@@ -1725,6 +1738,106 @@ function ShinyLogoText({ sizeClass }) {
   );
 }
 
+// Full-screen intro video shown when the app/site first opens. Autoplays
+// muted (browsers block autoplay-with-sound without a user gesture), with
+// a tap-to-unmute control, a Skip button that appears after a beat, and a
+// progress bar along the bottom. Falls back to skipping immediately if the
+// video errors out (missing file, unsupported format, etc.) so a broken
+// video file can never trap someone on the intro screen.
+function IntroVideo({ onFinish }) {
+  const videoRef = useRef(null);
+  const [canSkip, setCanSkip] = useState(false);
+  const [muted, setMuted] = useState(true);
+  const [progress, setProgress] = useState(0);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setCanSkip(true), 1200);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    // If the video can't play for any reason, don't block the app.
+    const failTimer = setTimeout(() => {
+      const v = videoRef.current;
+      if (v && v.readyState === 0) setFailed(true);
+    }, 6000);
+    return () => clearTimeout(failTimer);
+  }, []);
+
+  useEffect(() => {
+    if (failed) onFinish();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [failed]);
+
+  const handleTimeUpdate = () => {
+    const v = videoRef.current;
+    if (!v || !v.duration) return;
+    setProgress((v.currentTime / v.duration) * 100);
+  };
+
+  const toggleMute = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.muted = !v.muted;
+    setMuted(v.muted);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center"
+      style={{ backgroundColor: "#000000", animation: "fadeIn 0.2s ease-out" }}
+    >
+      <video
+        ref={videoRef}
+        className="w-full h-full object-cover"
+        src={INTRO_VIDEO_SRC}
+        poster={INTRO_VIDEO_POSTER || undefined}
+        autoPlay
+        muted={muted}
+        playsInline
+        onEnded={onFinish}
+        onError={() => setFailed(true)}
+        onTimeUpdate={handleTimeUpdate}
+      />
+
+      {/* Logo watermark so the intro still reads as "Campus Connect" even
+          before/while the video itself loads. */}
+      <div className="absolute top-5 left-5 sm:top-7 sm:left-7 flex items-center gap-2.5 pointer-events-none">
+        <img src="/uop-logo.png" alt="" className="w-8 h-8 object-contain drop-shadow-lg" />
+        <span className="text-base sm:text-lg font-bold" style={{ fontFamily: "'Fraunces', serif", color: "#fff", textShadow: "0 2px 8px rgba(0,0,0,0.6)" }}>
+          Campus Connect
+        </span>
+      </div>
+
+      <div className="absolute bottom-0 left-0 right-0 flex flex-col gap-3 p-5 sm:p-7">
+        <div className="w-full h-1 rounded-full overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.25)" }}>
+          <div className="h-full rounded-full" style={{ width: `${progress}%`, backgroundColor: "#E8C158", transition: "width 0.1s linear" }} />
+        </div>
+        <div className="flex items-center justify-between">
+          <button
+            onClick={toggleMute}
+            aria-label={muted ? "Unmute intro video" : "Mute intro video"}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
+            style={{ backgroundColor: "rgba(255,255,255,0.14)", color: "#fff", border: "1px solid rgba(255,255,255,0.25)", backdropFilter: "blur(6px)" }}
+          >
+            {muted ? <VolumeX size={14} /> : <Volume2 size={14} />} {muted ? "Unmute" : "Mute"}
+          </button>
+          {canSkip && (
+            <button
+              onClick={onFinish}
+              className="px-4 py-1.5 rounded-full text-xs font-semibold"
+              style={{ backgroundColor: "rgba(255,255,255,0.9)", color: "#1B2740" }}
+            >
+              Skip Intro →
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Regular-user sign in / sign up, using the SAME Firebase Auth project as
 // the admin login above — this just isn't restricted to ADMIN_EMAIL. Any
 // student can create an account here to file or track Lost & Found /
@@ -2326,6 +2439,32 @@ function BottomNav({ section, setSection }) {
 }
 
 export default function App() {
+  // Show the full-screen intro video before anything else renders. The
+  // frequency (every open / once per tab session / once ever) is
+  // controlled by INTRO_VIDEO_FREQUENCY above. If no video source is
+  // configured, skip the intro entirely.
+  const [showIntro, setShowIntro] = useState(() => {
+    if (!INTRO_VIDEO_SRC) return false;
+    try {
+      if (INTRO_VIDEO_FREQUENCY === "always") return true;
+      if (INTRO_VIDEO_FREQUENCY === "once") {
+        return !localStorage.getItem("cg_intro_seen_ever");
+      }
+      // "session" (default): once per browser tab session.
+      return !sessionStorage.getItem("cg_intro_seen_session");
+    } catch {
+      return true;
+    }
+  });
+
+  const finishIntro = () => {
+    try {
+      sessionStorage.setItem("cg_intro_seen_session", "1");
+      localStorage.setItem("cg_intro_seen_ever", "1");
+    } catch {}
+    setShowIntro(false);
+  };
+
   const [section, setSection] = useState("events"); // "events" | "lostfound"
 
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -2783,6 +2922,10 @@ export default function App() {
   // Chromium fired beforeinstallprompt, or we're on iOS (manual flow) — and
   // hide it once the app is already running standalone (i.e. installed).
   const canShowInstallButton = (showInstallBtn || isIOS) && !isStandalone;
+
+  if (showIntro) {
+    return <IntroVideo onFinish={finishIntro} />;
+  }
 
   return (
     <div style={{ backgroundColor: THEME.cream, minHeight: "100vh", fontFamily: "'Inter', sans-serif", transition: "background-color 0.2s ease" }}>
