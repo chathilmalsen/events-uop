@@ -58,9 +58,6 @@ import {
 
 import {serverTimestamp } from "firebase/firestore";
 
-const isRealUser = Boolean(authUser && !authUser.isAnonymous);
-const realUser = isRealUser ? authUser : null;
-
 const ADMIN_EMAIL = "ktchathilmalsencm@gmail.com";
 const INSTAGRAM_URL = "https://www.instagram.com/chathilmkt?igsh=MTgwZGdlbnVwMzQzeA%3D%3D&utm_source=qr";
 const YOUTUBE_URL = "https://youtube.com/@chathilmalsen?si=ogQ5UF4PWG1ktGfY";
@@ -2596,6 +2593,9 @@ export default function App() {
   const [showReportTicket, setShowReportTicket] = useState(false);
   const [reportDefaultType, setReportDefaultType] = useState("lost");
   const [selectedTicket, setSelectedTicket] = useState(null);
+
+  const isRealUser = Boolean(authUser && !authUser.isAnonymous);
+  const realUser = isRealUser ? authUser : null;
 
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
