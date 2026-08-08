@@ -45,7 +45,9 @@ import {
   arrayUnion,
   arrayRemove,
   increment,
-  runTransaction
+  runTransaction,
+  writeBatch,
+  serverTimestamp
 } from "firebase/firestore";
 import {
   signInWithEmailAndPassword,
@@ -56,7 +58,6 @@ import {
   signInAnonymously,
 } from "firebase/auth";
 
-import {serverTimestamp } from "firebase/firestore";
 
 const ADMIN_EMAIL = "ktchathilmalsencm@gmail.com";
 const INSTAGRAM_URL = "https://www.instagram.com/chathilmkt?igsh=MTgwZGdlbnVwMzQzeA%3D%3D&utm_source=qr";
@@ -2832,18 +2833,39 @@ useEffect(() => {
 
 const addTicket = async (form) => {
   try {
-    await addDoc(collection(db, "tickets"), {
+    if (!authUser || authUser.isAnonymous) {
+      setShowUserAuth(true);
+      alert("Please sign in to submit a report.");
+      return;
+    }
+
+    const uid = authUser.uid;
+    const ticketRef = doc(collection(db, "tickets"));
+    const limitRef = doc(db, "postLimits", uid);
+    const batch = writeBatch(db);
+
+    batch.set(ticketRef, {
       ...form,
       status: "open",
-      reportedBy: realUser?.displayName || realUser?.email || "Anonymous",
-      reporterUid: realUser?.uid || null,
-      reporterEmail: realUser?.email || null,
+      reportedBy: authUser.displayName || authUser.email || "User",
+      reporterUid: uid,
+      reporterEmail: authUser.email || "",
       createdAt: Date.now(),
     });
+
+    batch.set(limitRef, {
+      lastPostAt: serverTimestamp(),
+    });
+
+    await batch.commit();
     setShowReportTicket(false);
   } catch (error) {
     console.error("Error adding ticket:", error);
-    alert("Could not submit report. Please try again.");
+    alert(
+      error?.code
+        ? `Could not submit report.\n\nFirebase error: ${error.code}`
+        : "Could not submit report. Please try again."
+    );
   }
 };
 
@@ -2886,19 +2908,46 @@ const addTicket = async (form) => {
 
 const addEvent = async (ev) => {
   try {
-    if (ev.postedBy) handleSaveUserName(ev.postedBy);
-    await addDoc(collection(db, "events"), {
+    if (!authUser || authUser.isAnonymous) {
+      setShowUserAuth(true);
+      alert("Please sign in to post an event.");
+      return;
+    }
+
+    const uid = authUser.uid;
+
+    if (ev.postedBy) {
+      handleSaveUserName(ev.postedBy);
+    }
+
+    const eventRef = doc(collection(db, "events"));
+    const limitRef = doc(db, "postLimits", uid);
+    const batch = writeBatch(db);
+
+    batch.set(eventRef, {
       ...ev,
-      posterUid: authUser?.uid || null,   // anonymous uid is fine here — anyone can post
+      posterUid: uid,
       views: 0,
       likes: [],
       comments: [],
+      reports: [],
+      flagged: false,
       createdAt: Date.now(),
     });
+
+    batch.set(limitRef, {
+      lastPostAt: serverTimestamp(),
+    });
+
+    await batch.commit();
     setShowAdd(false);
   } catch (error) {
     console.error("Error adding event:", error);
-    alert("Could not save event. Please try again.");
+    alert(
+      error?.code
+        ? `Could not save event.\n\nFirebase error: ${error.code}`
+        : "Could not save event. Please try again."
+    );
   }
 };
 
@@ -2914,6 +2963,11 @@ const addEvent = async (ev) => {
   };
 
   const addComment = async (eventId, comment) => {
+    if (!authUser || authUser.isAnonymous) {
+      setShowUserAuth(true);
+      alert("Please sign in to comment.");
+      return;
+    }
     try {
       const eventRef = doc(db, "events", eventId);
       await updateDoc(eventRef, {
@@ -2927,6 +2981,11 @@ const addEvent = async (ev) => {
   // Runs as a Firestore transaction so two people reacting to the same
   // comment at nearly the same instant can't silently overwrite each other.
   const reactToComment = async (eventId, commentId, emoji, uidStr) => {
+    if (!authUser || authUser.isAnonymous) {
+      setShowUserAuth(true);
+      alert("Please sign in to react to a comment.");
+      return;
+    }
     try {
       const eventRef = doc(db, "events", eventId);
       await runTransaction(db, async (transaction) => {
@@ -3695,30 +3754,40 @@ const addEvent = async (ev) => {
     e.preventDefault();
 
     try {
+      if (!authUser || authUser.isAnonymous) {
+        setShowUserAuth(true);
+        alert("Please sign in to send a message.");
+        return;
+      }
 
-      await addDoc(
-        collection(db, "messages"),
-        {
-          name: e.target.name.value,
-          email: e.target.email.value,
-          type: e.target.type.value,
-          message: e.target.message.value,
-          createdAt: serverTimestamp()
-        }
-      );
+      const uid = authUser.uid;
+      const messageRef = doc(collection(db, "messages"));
+      const limitRef = doc(db, "postLimits", uid);
+      const batch = writeBatch(db);
 
+      batch.set(messageRef, {
+        name: e.target.name.value.trim(),
+        email: e.target.email.value.trim(),
+        type: e.target.type.value,
+        message: e.target.message.value.trim(),
+        createdAt: serverTimestamp()
+      });
+
+      batch.set(limitRef, {
+        lastPostAt: serverTimestamp(),
+      });
+
+      await batch.commit();
 
       alert("Message sent successfully!");
-
       e.target.reset();
-
-
     } catch (error) {
-
-      console.error(error);
-
-      alert("Failed to send message");
-
+      console.error("Error sending message:", error);
+      alert(
+        error?.code
+          ? `Failed to send message.\n\nFirebase error: ${error.code}`
+          : "Failed to send message"
+      );
     }
   }}
 >
