@@ -53,6 +53,8 @@ import {
 } from "firebase/firestore";
 import {
   signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  updateProfile,
   signOut,
   onAuthStateChanged,
   signInAnonymously,
@@ -1965,8 +1967,11 @@ function IntroVideo({ onFinish }) {
 // Regular-user sign in using the SAME Firebase Auth project as the admin
 // login above. Account creation is intentionally disabled in this app.
 function UserAuthModal({ onClose, onSuccess }) {
+  const [mode, setMode] = useState("signin");
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -1974,11 +1979,6 @@ function UserAuthModal({ onClose, onSuccess }) {
   const [cooldown, setCooldown] = useState(0);
   const inputStyle = inputStyleFn();
 
-  // Firebase's verification email is delivered by Firebase's configured
-  // authentication mail service. The app cannot force Gmail/Outlook to put
-  // the message in Inbox, but this flow avoids unnecessary repeated sends,
-  // gives the user a clear Spam/Junk instruction, and provides a controlled
-  // resend action with a cooldown.
   useEffect(() => {
     if (cooldown <= 0) return undefined;
     const timer = setInterval(() => {
@@ -1993,19 +1993,31 @@ function UserAuthModal({ onClose, onSuccess }) {
       "auth/user-not-found": "No account found with that email.",
       "auth/wrong-password": "Incorrect email or password.",
       "auth/invalid-credential": "Incorrect email or password.",
+      "auth/email-already-in-use": "An account already exists with this email. Try signing in instead.",
+      "auth/weak-password": "Password is too weak. Please choose a stronger password.",
+      "auth/password-does-not-meet-requirements": "Your password does not meet the required password rules.",
       "auth/too-many-requests": "Too many attempts. Please try again later.",
       "auth/user-disabled": "This account has been disabled.",
       "auth/network-request-failed": "Network error. Please check your connection and try again.",
+      "auth/operation-not-allowed": "Email/password accounts are not enabled in Firebase Authentication yet.",
     };
-    return map[err?.code] || "Unable to sign in. Please check your email and password.";
+    return map[err?.code] || (mode === "signup"
+      ? "Unable to create the account. Please check your details and try again."
+      : "Unable to sign in. Please check your email and password.");
+  };
+
+  const switchMode = (nextMode) => {
+    setMode(nextMode);
+    setError("");
+    setInfo("");
+    setPassword("");
+    setConfirmPassword("");
   };
 
   const signInAndRefresh = async () => {
     const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
     let user = cred.user;
 
-    // Refresh both the Firebase user profile and token. This is important
-    // when the user verified the address in another browser/tab.
     try {
       await reload(user);
       await user.getIdToken(true);
@@ -2018,8 +2030,6 @@ function UserAuthModal({ onClose, onSuccess }) {
   };
 
   const sendVerification = async (user) => {
-    // Do not send another message if Firebase already reports the account as
-    // verified. This also prevents accidental duplicate verification emails.
     await reload(user);
     if (user.emailVerified) return false;
 
@@ -2028,42 +2038,105 @@ function UserAuthModal({ onClose, onSuccess }) {
     return true;
   };
 
+  const handleSignIn = async () => {
+    const user = await signInAndRefresh();
+
+    if (!user.emailVerified) {
+      await signOut(auth);
+      setInfo(
+        "Your email is not verified yet. Check your Inbox and Spam/Junk folder for the Campus Connect verification email."
+      );
+      return;
+    }
+
+    onSuccess();
+    onClose();
+  };
+
+  const handleSignUp = async () => {
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim();
+
+    if (!trimmedName) {
+      setError("Please enter your name.");
+      return;
+    }
+
+    if (!trimmedEmail || !password || !confirmPassword) {
+      setError("Please complete all fields.");
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    const cred = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
+    const user = cred.user;
+
+    try {
+      await updateProfile(user, { displayName: trimmedName });
+    } catch (profileErr) {
+      console.warn("Could not save display name to Firebase Auth:", profileErr);
+    }
+
+    try {
+      await sendEmailVerification(user);
+      setCooldown(60);
+    } catch (verificationErr) {
+      console.error("Campus Connect verification email error:", verificationErr);
+      await signOut(auth);
+      throw verificationErr;
+    }
+
+    await signOut(auth);
+
+    setMode("signin");
+    setPassword("");
+    setConfirmPassword("");
+    setInfo(
+      "Account created successfully! We sent a verification email to your address. Check your Inbox and Spam/Junk folder, then verify your email before signing in."
+    );
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     setError("");
     setInfo("");
 
-    if (!email.trim() || !password) {
-      setError("Please enter your email and password.");
+    if (!email.trim()) {
+      setError("Please enter your email address.");
+      return;
+    }
+
+    if (!password) {
+      setError("Please enter your password.");
       return;
     }
 
     setSubmitting(true);
 
     try {
-      const user = await signInAndRefresh();
-
-      if (!user.emailVerified) {
-        // IMPORTANT: Do not automatically send a new email on every login.
-        // Repeated automatic sends can create duplicate messages and make
-        // mailbox filtering less predictable. The user can explicitly use
-        // the Resend button below instead.
-        await signOut(auth);
-        setInfo(
-          "Your email is not verified yet. Check your Inbox and Spam/Junk folder for the Campus Connect verification email."
-        );
-        setSubmitting(false);
-        return;
+      if (mode === "signup") {
+        await handleSignUp();
+      } else {
+        await handleSignIn();
       }
-
-      onSuccess();
-      onClose();
     } catch (err) {
-      console.error("Campus Connect sign-in error:", err);
+      console.error(`Campus Connect ${mode} error:`, err);
       setError(friendlyAuthError(err));
+      try {
+        if (mode === "signup") await signOut(auth);
+      } catch {}
+    } finally {
+      setSubmitting(false);
     }
-
-    setSubmitting(false);
   };
 
   const resendVerificationEmail = async () => {
@@ -2103,31 +2176,64 @@ function UserAuthModal({ onClose, onSuccess }) {
       if (err?.code === "auth/too-many-requests") {
         setError("Too many verification requests. Please wait a while before trying again.");
       } else {
-        setError(err?.message || "Could not send the verification email. Please try again later.");
+        setError(friendlyAuthError(err));
       }
       try { await signOut(auth); } catch {}
+    } finally {
+      setResending(false);
     }
-
-    setResending(false);
   };
 
   return (
     <Modal onClose={onClose}>
       <form onSubmit={submit} className="p-5 sm:p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2
-            style={{ fontFamily: "'Fraunces', serif", color: THEME.ink, fontSize: 20, fontWeight: 600 }}
-            className="flex items-center gap-2"
-          >
-            <LogIn size={20} color={THEME.gold} /> Sign In
-          </h2>
+          <div>
+            <h2
+              style={{ fontFamily: "'Fraunces', serif", color: THEME.ink, fontSize: 20, fontWeight: 600 }}
+              className="flex items-center gap-2"
+            >
+              {mode === "signup" ? <User size={20} color={THEME.gold} /> : <LogIn size={20} color={THEME.gold} />}
+              {mode === "signup" ? "Create Account" : "Sign In"}
+            </h2>
+          </div>
           <button type="button" onClick={onClose} aria-label="Close" className="p-1.5 rounded-full hover:bg-black/5">
             <X size={18} color={THEME.inkSoft} />
           </button>
         </div>
 
+        <div
+          className="grid grid-cols-2 p-1 rounded-xl mb-4"
+          style={{ backgroundColor: THEME.ink + "08", border: `1px solid ${THEME.line}` }}
+        >
+          <button
+            type="button"
+            onClick={() => switchMode("signin")}
+            className="py-2 rounded-lg text-xs font-semibold transition-colors"
+            style={{
+              backgroundColor: mode === "signin" ? THEME.ink : "transparent",
+              color: mode === "signin" ? "#FFFFFF" : THEME.inkSoft,
+            }}
+          >
+            Sign In
+          </button>
+          <button
+            type="button"
+            onClick={() => switchMode("signup")}
+            className="py-2 rounded-lg text-xs font-semibold transition-colors"
+            style={{
+              backgroundColor: mode === "signup" ? THEME.ink : "transparent",
+              color: mode === "signup" ? "#FFFFFF" : THEME.inkSoft,
+            }}
+          >
+            Create Account
+          </button>
+        </div>
+
         <p className="text-xs mb-4" style={{ color: THEME.inkSoft }}>
-          Sign in to report or track Lost &amp; Found, Facility Issues, and use account-based features.
+          {mode === "signup"
+            ? "Create your Campus Connect account to post events, comment, react, and use Lost & Found and Facility Issues."
+            : "Sign in to report or track Lost & Found, Facility Issues, and use account-based features."}
         </p>
 
         {error && (
@@ -2150,6 +2256,20 @@ function UserAuthModal({ onClose, onSuccess }) {
           </div>
         )}
 
+        {mode === "signup" && (
+          <Field label="Name" required>
+            <input
+              type="text"
+              style={inputStyle}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Your name"
+              autoComplete="name"
+              required
+            />
+          </Field>
+        )}
+
         <Field label="Email" required>
           <input
             type="email"
@@ -2157,7 +2277,7 @@ function UserAuthModal({ onClose, onSuccess }) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
-            autoComplete="username"
+            autoComplete="email"
             required
           />
         </Field>
@@ -2168,36 +2288,66 @@ function UserAuthModal({ onClose, onSuccess }) {
             style={inputStyle}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Your password"
-            autoComplete="current-password"
+            placeholder={mode === "signup" ? "At least 6 characters" : "Your password"}
+            autoComplete={mode === "signup" ? "new-password" : "current-password"}
+            minLength={6}
             required
           />
         </Field>
 
-        <div
-          className="rounded-xl p-3 mb-4"
-          style={{ backgroundColor: THEME.ink + "08", border: `1px solid ${THEME.line}` }}
-        >
-          <p className="text-[11px] font-semibold mb-1" style={{ color: THEME.ink }}>
-            Email verification
-          </p>
-          <p className="text-[11px] leading-relaxed" style={{ color: THEME.inkSoft }}>
-            If you have not verified your email, check your Inbox, Spam, or Junk folder. Search for “Campus Connect”.
-          </p>
-          <button
-            type="button"
-            onClick={resendVerificationEmail}
-            disabled={submitting || resending || cooldown > 0}
-            className="mt-2 text-[11px] font-semibold disabled:opacity-50"
-            style={{ color: THEME.goldDeep }}
+        {mode === "signup" && (
+          <Field label="Confirm Password" required>
+            <input
+              type="password"
+              style={inputStyle}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Re-enter your password"
+              autoComplete="new-password"
+              minLength={6}
+              required
+            />
+          </Field>
+        )}
+
+        {mode === "signup" ? (
+          <div
+            className="rounded-xl p-3 mb-4"
+            style={{ backgroundColor: THEME.ink + "08", border: `1px solid ${THEME.line}` }}
           >
-            {resending
-              ? "Sending verification email…"
-              : cooldown > 0
-                ? `Resend verification email (${cooldown}s)`
-                : "Resend verification email"}
-          </button>
-        </div>
+            <p className="text-[11px] font-semibold mb-1" style={{ color: THEME.ink }}>
+              Email verification required
+            </p>
+            <p className="text-[11px] leading-relaxed" style={{ color: THEME.inkSoft }}>
+              After creating your account, we will send a verification email. Check your Inbox, Spam, or Junk folder and search for “Campus Connect”.
+            </p>
+          </div>
+        ) : (
+          <div
+            className="rounded-xl p-3 mb-4"
+            style={{ backgroundColor: THEME.ink + "08", border: `1px solid ${THEME.line}` }}
+          >
+            <p className="text-[11px] font-semibold mb-1" style={{ color: THEME.ink }}>
+              Email verification
+            </p>
+            <p className="text-[11px] leading-relaxed" style={{ color: THEME.inkSoft }}>
+              If you have not verified your email, check your Inbox, Spam, or Junk folder. Search for “Campus Connect”.
+            </p>
+            <button
+              type="button"
+              onClick={resendVerificationEmail}
+              disabled={submitting || resending || cooldown > 0}
+              className="mt-2 text-[11px] font-semibold disabled:opacity-50"
+              style={{ color: THEME.goldDeep }}
+            >
+              {resending
+                ? "Sending verification email…"
+                : cooldown > 0
+                  ? `Resend verification email (${cooldown}s)`
+                  : "Resend verification email"}
+            </button>
+          </div>
+        )}
 
         <div className="flex justify-end gap-2 mt-6">
           <button
@@ -2214,7 +2364,9 @@ function UserAuthModal({ onClose, onSuccess }) {
             className="px-5 py-2 rounded-full text-sm font-semibold disabled:opacity-60"
             style={{ backgroundColor: THEME.ink, color: "#FFFFFF" }}
           >
-            {submitting ? "Logging in…" : "Log In"}
+            {submitting
+              ? (mode === "signup" ? "Creating account…" : "Logging in…")
+              : (mode === "signup" ? "Create Account" : "Log In")}
           </button>
         </div>
       </form>
