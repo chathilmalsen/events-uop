@@ -1968,12 +1968,70 @@ function UserAuthModal({ onClose, onSuccess }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
   const inputStyle = inputStyleFn();
+
+  // Firebase's verification email is delivered by Firebase's configured
+  // authentication mail service. The app cannot force Gmail/Outlook to put
+  // the message in Inbox, but this flow avoids unnecessary repeated sends,
+  // gives the user a clear Spam/Junk instruction, and provides a controlled
+  // resend action with a cooldown.
+  useEffect(() => {
+    if (cooldown <= 0) return undefined;
+    const timer = setInterval(() => {
+      setCooldown((value) => Math.max(0, value - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
+
+  const friendlyAuthError = (err) => {
+    const map = {
+      "auth/invalid-email": "That doesn't look like a valid email address.",
+      "auth/user-not-found": "No account found with that email.",
+      "auth/wrong-password": "Incorrect email or password.",
+      "auth/invalid-credential": "Incorrect email or password.",
+      "auth/too-many-requests": "Too many attempts. Please try again later.",
+      "auth/user-disabled": "This account has been disabled.",
+      "auth/network-request-failed": "Network error. Please check your connection and try again.",
+    };
+    return map[err?.code] || "Unable to sign in. Please check your email and password.";
+  };
+
+  const signInAndRefresh = async () => {
+    const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+    let user = cred.user;
+
+    // Refresh both the Firebase user profile and token. This is important
+    // when the user verified the address in another browser/tab.
+    try {
+      await reload(user);
+      await user.getIdToken(true);
+      user = auth.currentUser || user;
+    } catch (refreshErr) {
+      console.warn("Could not refresh email verification state/token:", refreshErr);
+    }
+
+    return user;
+  };
+
+  const sendVerification = async (user) => {
+    // Do not send another message if Firebase already reports the account as
+    // verified. This also prevents accidental duplicate verification emails.
+    await reload(user);
+    if (user.emailVerified) return false;
+
+    await sendEmailVerification(user);
+    setCooldown(60);
+    return true;
+  };
 
   const submit = async (e) => {
     e.preventDefault();
     setError("");
+    setInfo("");
 
     if (!email.trim() || !password) {
       setError("Please enter your email and password.");
@@ -1983,22 +2041,17 @@ function UserAuthModal({ onClose, onSuccess }) {
     setSubmitting(true);
 
     try {
-      const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
-      let user = cred.user;
-
-      try {
-        await reload(user);
-        user = auth.currentUser || user;
-      } catch (refreshErr) {
-        console.warn("Could not refresh email verification state:", refreshErr);
-      }
+      const user = await signInAndRefresh();
 
       if (!user.emailVerified) {
-        try {
-          await sendEmailVerification(user);
-        } catch {}
+        // IMPORTANT: Do not automatically send a new email on every login.
+        // Repeated automatic sends can create duplicate messages and make
+        // mailbox filtering less predictable. The user can explicitly use
+        // the Resend button below instead.
         await signOut(auth);
-        setError("Please verify your email before using Campus Connect. A new verification email was sent.");
+        setInfo(
+          "Your email is not verified yet. Check your Inbox and Spam/Junk folder for the Campus Connect verification email."
+        );
         setSubmitting(false);
         return;
       }
@@ -2006,18 +2059,56 @@ function UserAuthModal({ onClose, onSuccess }) {
       onSuccess();
       onClose();
     } catch (err) {
-      const map = {
-        "auth/invalid-email": "That doesn't look like a valid email address.",
-        "auth/user-not-found": "No account found with that email.",
-        "auth/wrong-password": "Incorrect password.",
-        "auth/invalid-credential": "Incorrect email or password.",
-        "auth/too-many-requests": "Too many attempts. Please try again later.",
-        "auth/user-disabled": "This account has been disabled.",
-      };
-      setError(map[err.code] || "Unable to sign in. Please check your email and password.");
+      console.error("Campus Connect sign-in error:", err);
+      setError(friendlyAuthError(err));
     }
 
     setSubmitting(false);
+  };
+
+  const resendVerificationEmail = async () => {
+    setError("");
+    setInfo("");
+
+    if (!email.trim() || !password) {
+      setError("Enter your email and password first, then resend the verification email.");
+      return;
+    }
+
+    if (cooldown > 0) {
+      setInfo(`Please wait ${cooldown}s before requesting another verification email.`);
+      return;
+    }
+
+    setResending(true);
+
+    try {
+      const user = await signInAndRefresh();
+
+      if (user.emailVerified) {
+        await user.getIdToken(true).catch(() => {});
+        onSuccess();
+        onClose();
+        return;
+      }
+
+      await sendVerification(user);
+      await signOut(auth);
+
+      setInfo(
+        "Verification email sent. Check your Inbox and Spam/Junk folder. Search for “Campus Connect” or “Verify your email”."
+      );
+    } catch (err) {
+      console.error("Campus Connect verification resend error:", err);
+      if (err?.code === "auth/too-many-requests") {
+        setError("Too many verification requests. Please wait a while before trying again.");
+      } else {
+        setError(err?.message || "Could not send the verification email. Please try again later.");
+      }
+      try { await signOut(auth); } catch {}
+    }
+
+    setResending(false);
   };
 
   return (
@@ -2041,10 +2132,21 @@ function UserAuthModal({ onClose, onSuccess }) {
 
         {error && (
           <div
-            className="flex items-center gap-2 text-xs mb-4 px-3 py-2 rounded-lg"
+            className="flex items-start gap-2 text-xs mb-3 px-3 py-2 rounded-lg"
             style={{ backgroundColor: THEME.danger + "14", color: THEME.danger }}
           >
-            <AlertCircle size={14} /> {error}
+            <AlertCircle size={14} className="mt-0.5 flex-shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {info && (
+          <div
+            className="flex items-start gap-2 text-xs mb-3 px-3 py-2 rounded-lg"
+            style={{ backgroundColor: THEME.gold + "18", color: THEME.ink }}
+          >
+            <Send size={14} className="mt-0.5 flex-shrink-0" />
+            <span>{info}</span>
           </div>
         )}
 
@@ -2072,6 +2174,31 @@ function UserAuthModal({ onClose, onSuccess }) {
           />
         </Field>
 
+        <div
+          className="rounded-xl p-3 mb-4"
+          style={{ backgroundColor: THEME.ink + "08", border: `1px solid ${THEME.line}` }}
+        >
+          <p className="text-[11px] font-semibold mb-1" style={{ color: THEME.ink }}>
+            Email verification
+          </p>
+          <p className="text-[11px] leading-relaxed" style={{ color: THEME.inkSoft }}>
+            If you have not verified your email, check your Inbox, Spam, or Junk folder. Search for “Campus Connect”.
+          </p>
+          <button
+            type="button"
+            onClick={resendVerificationEmail}
+            disabled={submitting || resending || cooldown > 0}
+            className="mt-2 text-[11px] font-semibold disabled:opacity-50"
+            style={{ color: THEME.goldDeep }}
+          >
+            {resending
+              ? "Sending verification email…"
+              : cooldown > 0
+                ? `Resend verification email (${cooldown}s)`
+                : "Resend verification email"}
+          </button>
+        </div>
+
         <div className="flex justify-end gap-2 mt-6">
           <button
             type="button"
@@ -2083,7 +2210,7 @@ function UserAuthModal({ onClose, onSuccess }) {
           </button>
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || resending}
             className="px-5 py-2 rounded-full text-sm font-semibold disabled:opacity-60"
             style={{ backgroundColor: THEME.ink, color: "#FFFFFF" }}
           >
@@ -2094,7 +2221,6 @@ function UserAuthModal({ onClose, onSuccess }) {
     </Modal>
   );
 }
-
 
 function ReportTicketModal({ onClose, onSubmit, authUser, defaultType }) {
   const inputStyle = inputStyleFn();
