@@ -6,7 +6,7 @@ import {
   CalendarPlus, Download, Heart, Bookmark, Share2, Eye, Flame,
   ExternalLink, Sun, Moon, Monitor, Copy, Check, Reply, Bell,
   SlidersHorizontal, Ticket, Globe, MapPinned, Timer, QrCode,
-  PackageSearch, Wrench, ClipboardList, LogIn, UserPlus, Send,
+  PackageSearch, Wrench, ClipboardList, LogIn, Send,
   CheckCircle2, CircleDot, Loader2, Home, Volume2, VolumeX
 } from "lucide-react";
 
@@ -53,10 +53,8 @@ import {
 } from "firebase/firestore";
 import {
   signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
-  updateProfile,
   signInAnonymously,
   sendEmailVerification,
   reload,
@@ -1964,13 +1962,9 @@ function IntroVideo({ onFinish }) {
   );
 }
 
-// Regular-user sign in / sign up, using the SAME Firebase Auth project as
-// the admin login above — this just isn't restricted to ADMIN_EMAIL. Any
-// student can create an account here to file or track Lost & Found /
-// Facility Issue reports.
-function UserAuthModal({ onClose, onSuccess, initialMode = "login" }) {
-  const [mode, setMode] = useState(initialMode); // "login" | "signup"
-  const [name, setName] = useState("");
+// Regular-user sign in using the SAME Firebase Auth project as the admin
+// login above. Account creation is intentionally disabled in this app.
+function UserAuthModal({ onClose, onSuccess }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -1980,56 +1974,49 @@ function UserAuthModal({ onClose, onSuccess, initialMode = "login" }) {
   const submit = async (e) => {
     e.preventDefault();
     setError("");
+
     if (!email.trim() || !password) {
-      setError("Please enter an email and password.");
+      setError("Please enter your email and password.");
       return;
     }
-    if (mode === "signup" && !name.trim()) {
-      setError("Please enter your name.");
-      return;
-    }
+
     setSubmitting(true);
+
     try {
-      let user;
-      if (mode === "signup") {
-        const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
-        user = cred.user;
-        await updateProfile(user, { displayName: name.trim() });
-        await sendEmailVerification(user);
-        await signOut(auth);
-        setError("Account created. Please verify your email using the verification link we sent, then sign in.");
-        setSubmitting(false);
-        return;
-      } else {
-        const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
-        user = cred.user;
-        try {
-          await reload(user);
-          user = auth.currentUser || user;
-        } catch (refreshErr) {
-          console.warn("Could not refresh email verification state:", refreshErr);
-        }
+      const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+      let user = cred.user;
+
+      try {
+        await reload(user);
+        user = auth.currentUser || user;
+      } catch (refreshErr) {
+        console.warn("Could not refresh email verification state:", refreshErr);
       }
+
       if (!user.emailVerified) {
-        try { await sendEmailVerification(user); } catch {}
+        try {
+          await sendEmailVerification(user);
+        } catch {}
         await signOut(auth);
         setError("Please verify your email before using Campus Connect. A new verification email was sent.");
         setSubmitting(false);
         return;
       }
+
       onSuccess();
       onClose();
     } catch (err) {
       const map = {
-        "auth/email-already-in-use": "That email is already registered — try signing in instead.",
         "auth/invalid-email": "That doesn't look like a valid email address.",
-        "auth/weak-password": "Password should be at least 6 characters.",
         "auth/user-not-found": "No account found with that email.",
         "auth/wrong-password": "Incorrect password.",
         "auth/invalid-credential": "Incorrect email or password.",
+        "auth/too-many-requests": "Too many attempts. Please try again later.",
+        "auth/user-disabled": "This account has been disabled.",
       };
-      setError(map[err.code] || "Something went wrong. Please try again.");
+      setError(map[err.code] || "Unable to sign in. Please check your email and password.");
     }
+
     setSubmitting(false);
   };
 
@@ -2037,49 +2024,77 @@ function UserAuthModal({ onClose, onSuccess, initialMode = "login" }) {
     <Modal onClose={onClose}>
       <form onSubmit={submit} className="p-5 sm:p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 style={{ fontFamily: "'Fraunces', serif", color: THEME.ink, fontSize: 20, fontWeight: 600 }} className="flex items-center gap-2">
-            {mode === "login" ? <LogIn size={20} color={THEME.gold} /> : <UserPlus size={20} color={THEME.gold} />}
-            {mode === "login" ? "Sign In" : "Create Account"}
+          <h2
+            style={{ fontFamily: "'Fraunces', serif", color: THEME.ink, fontSize: 20, fontWeight: 600 }}
+            className="flex items-center gap-2"
+          >
+            <LogIn size={20} color={THEME.gold} /> Sign In
           </h2>
           <button type="button" onClick={onClose} aria-label="Close" className="p-1.5 rounded-full hover:bg-black/5">
             <X size={18} color={THEME.inkSoft} />
           </button>
         </div>
+
         <p className="text-xs mb-4" style={{ color: THEME.inkSoft }}>
-          Sign in to report or track Lost &amp; Found and Facility Issue tickets.
+          Sign in to report or track Lost &amp; Found, Facility Issues, and use account-based features.
         </p>
+
         {error && (
-          <div className="flex items-center gap-2 text-xs mb-4 px-3 py-2 rounded-lg" style={{ backgroundColor: THEME.danger + "14", color: THEME.danger }}>
+          <div
+            className="flex items-center gap-2 text-xs mb-4 px-3 py-2 rounded-lg"
+            style={{ backgroundColor: THEME.danger + "14", color: THEME.danger }}
+          >
             <AlertCircle size={14} /> {error}
           </div>
         )}
-        {mode === "signup" && (
-          <Field label="Full Name" required>
-            <input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Chath Perera" />
-          </Field>
-        )}
+
         <Field label="Email" required>
-          <input type="email" style={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="username" />
+          <input
+            type="email"
+            style={inputStyle}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            autoComplete="username"
+            required
+          />
         </Field>
+
         <Field label="Password" required>
-          <input type="password" style={inputStyle} value={password} onChange={(e) => setPassword(e.target.value)} placeholder={mode === "signup" ? "At least 6 characters" : "Your password"} autoComplete={mode === "signup" ? "new-password" : "current-password"} />
+          <input
+            type="password"
+            style={inputStyle}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Your password"
+            autoComplete="current-password"
+            required
+          />
         </Field>
+
         <div className="flex justify-end gap-2 mt-6">
-          <button type="button" onClick={onClose} className="px-4 py-2 rounded-full text-sm font-medium" style={{ color: THEME.inkSoft }}>Cancel</button>
-          <button type="submit" disabled={submitting} className="px-5 py-2 rounded-full text-sm font-semibold disabled:opacity-60" style={{ backgroundColor: THEME.ink, color: THEME.cream }}>
-            {submitting ? "Please wait…" : mode === "login" ? "Sign In" : "Create Account"}
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded-full text-sm font-medium"
+            style={{ color: THEME.inkSoft }}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={submitting}
+            className="px-5 py-2 rounded-full text-sm font-semibold disabled:opacity-60"
+            style={{ backgroundColor: THEME.ink, color: THEME.cream }}
+          >
+            {submitting ? "Signing in…" : "Sign In"}
           </button>
         </div>
-        <p className="text-center text-xs mt-4" style={{ color: THEME.inkSoft }}>
-          {mode === "login" ? "New here?" : "Already have an account?"}{" "}
-          <button type="button" onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); }} className="font-semibold" style={{ color: THEME.goldDeep }}>
-            {mode === "login" ? "Create an account" : "Sign in"}
-          </button>
-        </p>
       </form>
     </Modal>
   );
 }
+
 
 function ReportTicketModal({ onClose, onSubmit, authUser, defaultType }) {
   const inputStyle = inputStyleFn();
@@ -2672,8 +2687,6 @@ export default function App() {
   const [showAdd, setShowAdd] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [showUserModal, setShowUserModal] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authInitialMode, setAuthInitialMode] = useState("login");
   const [editingEvent, setEditingEvent] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
 
@@ -3495,29 +3508,13 @@ const addEvent = async (ev) => {
              )}
 
             <button
-              onClick={() => {
-                setAuthInitialMode("login");
-                setShowAuthModal(true);
-              }}
+              onClick={() => setShowUserAuth(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors hover:bg-white/10"
               style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", color: THEME.headerText }}
               title="Sign in"
             >
               <LogIn size={14} color={THEME.headerText} />
               <span>Sign In</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setAuthInitialMode("signup");
-                setShowAuthModal(true);
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors hover:bg-white/10"
-              style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", color: THEME.headerText }}
-              title="Create a new account"
-            >
-              <UserPlus size={14} color={THEME.headerText} />
-              <span>Create Account</span>
             </button>
 
             <button
@@ -3557,29 +3554,13 @@ const addEvent = async (ev) => {
         )}
 
             <button
-              onClick={() => {
-                setAuthInitialMode("login");
-                setShowAuthModal(true);
-              }}
+              onClick={() => setShowUserAuth(true)}
               className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors hover:bg-white/10 w-full"
               style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", color: THEME.headerText }}
               title="Sign in"
             >
               <LogIn size={14} color={THEME.headerText} />
               <span>Sign In</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setAuthInitialMode("signup");
-                setShowAuthModal(true);
-              }}
-              className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors hover:bg-white/10 w-full"
-              style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", color: THEME.headerText }}
-              title="Create a new account"
-            >
-              <UserPlus size={14} color={THEME.headerText} />
-              <span>Create New Account</span>
             </button>
 
             <button
@@ -4365,13 +4346,6 @@ const addEvent = async (ev) => {
       <BottomNav section={section} setSection={setSection} isAdmin={isAdmin} />
 
       {showLogin && <LoginModal onClose={() => setShowLogin(false)} onLoginSuccess={() => setIsAdmin(true)} />}
-      {showAuthModal && (
-        <UserAuthModal
-          initialMode={authInitialMode}
-          onClose={() => setShowAuthModal(false)}
-          onSuccess={() => setShowAuthModal(false)}
-        />
-      )}
       {showUserModal && <SetUserModal onClose={() => setShowUserModal(false)} onSave={handleSaveUserName} currentName={currentUser} />}
       {showAdd && <AddOrEditEventModal onClose={() => setShowAdd(false)} onSubmit={addEvent} currentUser={currentUser} events={events} />}
       {editingEvent && <AddOrEditEventModal onClose={() => setEditingEvent(null)} onSubmit={updateEvent} initialData={editingEvent} currentUser={currentUser} events={events} />}
