@@ -2624,42 +2624,7 @@ export default function App() {
   // controlled by INTRO_VIDEO_FREQUENCY above. If no video is configured
   // for ANY device/orientation, skip the intro entirely.
 
-  // ✅ ADD HERE (top of App component, before return)
-
-const isMobile = window.innerWidth < 640;
-const isLandscape = window.innerWidth > window.innerHeight;
-
-const baseBtn =
-  "flex items-center justify-center gap-2 rounded-full font-semibold transition-all";
-
-const desktopBtn = "px-5 py-2 text-sm";
-const mobilePortraitBtn = "px-3 py-1.5 text-xs flex-1";
-const mobileLandscapeBtn = "px-2 py-1 text-[10px]";
-
-const baseBtn =
-  "font-semibold rounded-full transition-all flex items-center justify-center";
-
-const desktopBtn = "px-4 py-2 text-sm";
-
-const mobilePortraitBtn = "flex-1 px-3 py-2 text-xs";
-
-const mobileLandscapeBtn = "px-2 py-1 text-[10px]";
-
-const [isMobile, setIsMobile] = useState(false);
-const [isLandscape, setIsLandscape] = useState(false);
-
-useEffect(() => {
-  const handleResize = () => {
-    const mobile = window.innerWidth < 640;
-    setIsMobile(mobile);
-    setIsLandscape(window.innerWidth > window.innerHeight);
-  };
-
-  handleResize();
-  window.addEventListener("resize", handleResize);
-  return () => window.removeEventListener("resize", handleResize);
-}, []);
-
+  // Responsive sizing is handled by the existing CSS classes.
   const [showIntro, setShowIntro] = useState(() => {
     const anyVideoConfigured = Object.values(INTRO_VIDEOS).some((v) => v.src);
     if (!anyVideoConfigured) return false;
