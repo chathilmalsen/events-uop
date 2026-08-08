@@ -3542,34 +3542,48 @@ const addEvent = async (ev) => {
               </div>
             </div>
 
-            {canShowInstallButton && (
-          <button
-            onClick={handleInstallClick}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors hover:bg-white/10"
-            style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", color: THEME.headerText }}
-          >
-          <Download size={14} color={THEME.headerText} />
-          <span>Install App</span>
-          </button>
-        )}
+            {/* MOBILE ACTIONS: compact vertical Install / Sign In stack beside + Post Event */}
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <div className="flex flex-col gap-1">
+                {canShowInstallButton && (
+                  <button
+                    onClick={handleInstallClick}
+                    className="flex items-center justify-center gap-1 px-2 py-1 rounded-full text-[9px] leading-none font-semibold border transition-colors hover:bg-white/10 active:scale-95"
+                    style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", color: THEME.headerText, minWidth: 72, minHeight: 25 }}
+                    title="Install App"
+                  >
+                    <Download size={11} color={THEME.headerText} />
+                    <span>Install</span>
+                  </button>
+                )}
 
-            <button
-              onClick={() => setShowUserAuth(true)}
-              className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors hover:bg-white/10 w-full"
-              style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", color: THEME.headerText }}
-              title="Sign in"
-            >
-              <LogIn size={14} color={THEME.headerText} />
-              <span>Sign In</span>
-            </button>
+                <button
+                  onClick={() => setShowUserAuth(true)}
+                  className="flex items-center justify-center gap-1 px-2 py-1 rounded-full text-[9px] leading-none font-semibold border transition-colors hover:bg-white/10 active:scale-95"
+                  style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", color: THEME.headerText, minWidth: 72, minHeight: 25 }}
+                  title="Sign in"
+                >
+                  <LogIn size={11} color={THEME.headerText} />
+                  <span>Sign In</span>
+                </button>
+              </div>
 
-            <button
-              onClick={() => setShowAdd(true)}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold transition-transform active:scale-95 shadow-sm flex-shrink-0"
-              style={{color: "#dfe0e1"  }}
-            >
-              <span className="text-6xl">+</span>
-            </button>
+              <button
+                onClick={() => setShowAdd(true)}
+                className="flex items-center justify-center rounded-full text-xl font-semibold transition-transform active:scale-95 shadow-sm flex-shrink-0"
+                style={{
+                  width: 42,
+                  height: 42,
+                  color: "#dfe0e1",
+                  backgroundColor: "rgba(255,255,255,0.08)",
+                  border: "1px solid rgba(255,255,255,0.2)"
+                }}
+                title="Post Event"
+                aria-label="Post Event"
+              >
+                +
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center justify-between pt-1.5 text-[10px]" style={{ borderTop: `1px dashed rgba(255,255,255,0.15)`, color: THEME.headerSoft }}>
