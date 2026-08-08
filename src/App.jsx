@@ -62,13 +62,45 @@ const INSTAGRAM_URL = "https://www.instagram.com/chathilmkt?igsh=MTgwZGdlbnVwMzQ
 const YOUTUBE_URL = "https://youtube.com/@chathilmalsen?si=ogQ5UF4PWG1ktGfY";
 
 // --- INTRO VIDEO CONFIG ---
-// Drop your intro video file into the /public folder (or wherever your
-// build serves static assets from) and point this at it. Also drop a
-// poster/thumbnail image next to it so there's something visible while the
-// video is still loading. Both are optional — if INTRO_VIDEO_SRC is empty,
-// the intro screen is skipped entirely.
-const INTRO_VIDEO_SRC = "/intro-video.mp4";
-const INTRO_VIDEO_POSTER = "/intro-poster.jpg";
+// Separate LOCAL video files for desktop vs mobile, and for mobile
+// portrait vs landscape orientation — so each device/orientation gets a
+// clip cut for its own aspect ratio instead of one video being cropped or
+// letterboxed everywhere. Drop each file into /public (or wherever your
+// build serves static assets from) and point the matching entry at it.
+// Every entry also takes an optional poster image, shown while that
+// particular video is still loading. These are always local files served
+// by your own app (a plain <video> tag pointing at your own /public
+// folder) — never an external host or embedded player — so leave any
+// entry's `src` empty to skip the intro for that device/orientation.
+const INTRO_VIDEOS = {
+  desktop: {
+    src: "/intro-video-desktop.mp4",
+    poster: "/intro-poster-desktop.jpg",
+  },
+  mobilePortrait: {
+    src: "/intro-video-mobile-portrait.mp4",
+    poster: "/intro-poster-mobile-portrait.jpg",
+  },
+  mobileLandscape: {
+    src: "/intro-video-mobile-landscape.mp4",
+    poster: "/intro-poster-mobile-landscape.jpg",
+  },
+};
+// Below what viewport width (in px) a visitor is treated as "mobile" for
+// the purpose of picking an intro video variant.
+const MOBILE_BREAKPOINT = 640;
+
+// Picks the right local intro video for the current viewport: desktop, or
+// mobile-portrait / mobile-landscape based on live width vs height. Called
+// once on mount and again on resize/rotate while the intro is showing.
+function pickIntroVideo() {
+  if (typeof window === "undefined") return INTRO_VIDEOS.desktop;
+  const isMobile = window.innerWidth < MOBILE_BREAKPOINT;
+  if (!isMobile) return INTRO_VIDEOS.desktop;
+  const isPortrait = window.innerHeight >= window.innerWidth;
+  return isPortrait ? INTRO_VIDEOS.mobilePortrait : INTRO_VIDEOS.mobileLandscape;
+}
+
 // "session" -> show once per browser tab session (recommended)
 // "always"  -> show every single time the app/site is opened or refreshed
 // "once"    -> show only the very first time this browser ever opens the app
@@ -1738,32 +1770,106 @@ function ShinyLogoText({ sizeClass }) {
   );
 }
 
+// Renders the University of Peradeniya logo (/uop-logo.png). If that file
+// fails to load — wrong path, not deployed to /public, slow network — this
+// falls back to a plain monogram badge instead of leaving a broken-image
+// icon on screen. This is why the logo could look "not working": every
+// place the logo was used before had no error handling at all, so a single
+// bad path silently broke it everywhere at once. Now each spot uses this
+// component instead of a bare <img>.
+function AppLogo({ size = 44, className = "" }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return (
+      <div
+        className={`flex items-center justify-center flex-shrink-0 rounded-full ${className}`}
+        style={{
+          width: size,
+          height: size,
+          background: "linear-gradient(135deg, #356a9f, #1B2740)",
+          color: "#fff",
+          fontFamily: "'IBM Plex Mono', monospace",
+          fontWeight: 700,
+          fontSize: Math.max(9, size * 0.32),
+          letterSpacing: "0.02em",
+        }}
+        title="University of Peradeniya"
+      >
+        UOP
+      </div>
+    );
+  }
+  return (
+    <img
+      src="/uop-logo.png"
+      alt="University of Peradeniya logo"
+      className={`object-contain flex-shrink-0 ${className}`}
+      style={{ width: size, height: size }}
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 // Full-screen intro video shown when the app/site first opens. Autoplays
 // muted (browsers block autoplay-with-sound without a user gesture), with
 // a tap-to-unmute control, a Skip button that appears after a beat, and a
-// progress bar along the bottom. Falls back to skipping immediately if the
-// video errors out (missing file, unsupported format, etc.) so a broken
-// video file can never trap someone on the intro screen.
+// progress bar along the bottom. The clip itself is chosen dynamically —
+// desktop / mobile-portrait / mobile-landscape — via `pickIntroVideo()`,
+// and re-picked if the visitor rotates their phone or resizes the window
+// while the intro is showing. Falls back to skipping immediately if the
+// chosen video errors out (missing file, unsupported format, etc.) so a
+// broken video file can never trap someone on the intro screen.
 function IntroVideo({ onFinish }) {
   const videoRef = useRef(null);
   const [canSkip, setCanSkip] = useState(false);
   const [muted, setMuted] = useState(true);
   const [progress, setProgress] = useState(0);
   const [failed, setFailed] = useState(false);
+  const [video, setVideo] = useState(pickIntroVideo);
 
   useEffect(() => {
     const t = setTimeout(() => setCanSkip(true), 1200);
     return () => clearTimeout(t);
   }, []);
 
+  // Re-pick the matching video whenever the viewport crosses the mobile
+  // breakpoint or the device is rotated (e.g. someone flips their phone a
+  // second into the clip). Debounced so rapid resize events during a
+  // rotation don't restart the video repeatedly.
   useEffect(() => {
-    // If the video can't play for any reason, don't block the app.
+    let debounceId;
+    const handleResize = () => {
+      clearTimeout(debounceId);
+      debounceId = setTimeout(() => {
+        const next = pickIntroVideo();
+        setVideo((prev) => (prev.src === next.src ? prev : next));
+      }, 200);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      clearTimeout(debounceId);
+    };
+  }, []);
+
+  // If the currently-selected video can't play for any reason, don't block
+  // the app — skip straight through. Re-armed whenever `video` changes (a
+  // resize/rotate swapped in a different clip).
+  useEffect(() => {
+    setFailed(false);
+    setProgress(0);
     const failTimer = setTimeout(() => {
       const v = videoRef.current;
       if (v && v.readyState === 0) setFailed(true);
     }, 6000);
     return () => clearTimeout(failTimer);
-  }, []);
+  }, [video.src]);
+
+  // No video configured at all for this device/orientation — skip straight
+  // through instead of showing a black screen.
+  useEffect(() => {
+    if (!video.src) setFailed(true);
+  }, [video.src]);
 
   useEffect(() => {
     if (failed) onFinish();
@@ -1783,16 +1889,21 @@ function IntroVideo({ onFinish }) {
     setMuted(v.muted);
   };
 
+  if (!video.src) return null;
+
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center"
       style={{ backgroundColor: "#000000", animation: "fadeIn 0.2s ease-out" }}
     >
+      {/* key={video.src} forces a fresh <video> element (and reload) when a
+          rotation/resize swaps in a different local clip. */}
       <video
+        key={video.src}
         ref={videoRef}
         className="w-full h-full object-cover"
-        src={INTRO_VIDEO_SRC}
-        poster={INTRO_VIDEO_POSTER || undefined}
+        src={video.src}
+        poster={video.poster || undefined}
         autoPlay
         muted={muted}
         playsInline
@@ -1804,7 +1915,7 @@ function IntroVideo({ onFinish }) {
       {/* Logo watermark so the intro still reads as "Campus Connect" even
           before/while the video itself loads. */}
       <div className="absolute top-5 left-5 sm:top-7 sm:left-7 flex items-center gap-2.5 pointer-events-none">
-        <img src="/uop-logo.png" alt="" className="w-8 h-8 object-contain drop-shadow-lg" />
+        <AppLogo size={32} className="drop-shadow-lg" />
         <span className="text-base sm:text-lg font-bold" style={{ fontFamily: "'Fraunces', serif", color: "#fff", textShadow: "0 2px 8px rgba(0,0,0,0.6)" }}>
           Campus Connect
         </span>
@@ -2441,10 +2552,11 @@ function BottomNav({ section, setSection }) {
 export default function App() {
   // Show the full-screen intro video before anything else renders. The
   // frequency (every open / once per tab session / once ever) is
-  // controlled by INTRO_VIDEO_FREQUENCY above. If no video source is
-  // configured, skip the intro entirely.
+  // controlled by INTRO_VIDEO_FREQUENCY above. If no video is configured
+  // for ANY device/orientation, skip the intro entirely.
   const [showIntro, setShowIntro] = useState(() => {
-    if (!INTRO_VIDEO_SRC) return false;
+    const anyVideoConfigured = Object.values(INTRO_VIDEOS).some((v) => v.src);
+    if (!anyVideoConfigured) return false;
     try {
       if (INTRO_VIDEO_FREQUENCY === "always") return true;
       if (INTRO_VIDEO_FREQUENCY === "once") {
@@ -3010,11 +3122,7 @@ export default function App() {
         {/* DESKTOP HEADER */}
         <div className="hidden sm:flex max-w-6xl mx-auto px-6 py-3.5 items-center justify-between gap-4 relative z-10">
           <div className="flex items-center gap-3.5 min-w-0">
-            <img
-              src="/uop-logo.png"
-              alt="University of Peradeniya logo"
-              className="w-11 h-11 object-contain flex-shrink-0 drop-shadow-md"
-            />
+            <AppLogo size={44} className="drop-shadow-md" />
             <div className="min-w-0">
               <div className="flex items-center gap-2.5">
                 <h1 className="text-xl font-bold truncate leading-snug tracking-tight" style={{ lineHeight: 1.2 }}>
@@ -3171,11 +3279,7 @@ export default function App() {
         <div className="flex sm:hidden flex-col px-3.5 py-3 gap-2.5 max-w-6xl mx-auto relative z-10">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2.5 min-w-0">
-              <img
-                src="/uop-logo.png"
-                alt="University of Peradeniya logo"
-                className="w-9 h-9 object-contain flex-shrink-0"
-              />
+              <AppLogo size={36} />
               <div className="min-w-0 flex flex-col justify-center">
                 <h1 className="text-base font-bold truncate leading-snug">
                   <ShinyLogoText sizeClass="text-base" />
