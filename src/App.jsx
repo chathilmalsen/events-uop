@@ -1281,8 +1281,6 @@ function EventDetailModal({ ev, onClose, onComment, onReact, onDelete, onEdit, i
   const [commentSort, setCommentSort] = useState("newest");
   const [shareOpen, setShareOpen] = useState(false);
   const [reminderOpen, setReminderOpen] = useState(false);
-  const isAuthor = Boolean(authUser && ev.posterUid && authUser.uid === ev.posterUid);
-  const canModify = isAdmin || isAuthor;
   const anonId = getAnonId();
   const f = facultyOf(ev.faculty);
   const c = categoryOf(ev.category);
@@ -1298,7 +1296,7 @@ function EventDetailModal({ ev, onClose, onComment, onReact, onDelete, onEdit, i
   });
   const tags = ev.tags || [];
 
-  const isAuthor = Boolean(currentUser && ev.postedBy && currentUser.trim().toLowerCase() === ev.postedBy.trim().toLowerCase());
+  const isAuthor = Boolean(authUser && ev.posterUid && authUser.uid === ev.posterUid);
   const canModify = isAdmin || isAuthor;
 
   const submit = (e) => {
