@@ -794,8 +794,9 @@ function LoginModal({ onClose, onLoginSuccess }) {
       const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
       try {
         await reload(cred.user);
+        await cred.user.getIdToken(true);
       } catch (refreshErr) {
-        console.warn("Could not refresh admin verification state:", refreshErr);
+        console.warn("Could not refresh admin verification state/token:", refreshErr);
       }
       const adminUser = auth.currentUser || cred.user;
       if (adminUser.email !== ADMIN_EMAIL || !adminUser.emailVerified) {
@@ -2880,9 +2881,15 @@ useEffect(() => {
     if (!user) return null;
 
     try {
+      // Refresh the Firebase user profile first.
       await reload(user);
+
+      // IMPORTANT: Firestore Security Rules evaluate the email_verified
+      // claim from the ID token. Force-refresh the token after email
+      // verification so Firestore receives the latest claim immediately.
+      await user.getIdToken(true);
     } catch (err) {
-      console.warn("Could not refresh Firebase user:", err);
+      console.warn("Could not refresh Firebase user/token:", err);
     }
 
     const refreshedUser = auth.currentUser || user;
@@ -2935,7 +2942,6 @@ const addTicket = async (form) => {
     const uid = currentUser.uid;
     const ticketRef = doc(collection(db, "tickets"));
     const privateRef = doc(ticketRef, "private", "contact");
-    const limitRef = doc(db, "postLimits", uid);
     const batch = writeBatch(db);
 
     batch.set(ticketRef, {
@@ -2954,10 +2960,6 @@ const addTicket = async (form) => {
       ownerUid: uid,
       reporterEmail: currentUser.email || "",
       contact: (form.contact || "").trim(),
-    });
-
-    batch.set(limitRef, {
-      lastPostAt: serverTimestamp(),
     });
 
     await batch.commit();
@@ -3062,7 +3064,6 @@ const addEvent = async (ev) => {
     }
 
     const eventRef = doc(collection(db, "events"));
-    const limitRef = doc(db, "postLimits", uid);
     const batch = writeBatch(db);
 
     batch.set(eventRef, {
@@ -3076,7 +3077,6 @@ const addEvent = async (ev) => {
       createdAt: Date.now(),
     });
 
-    batch.set(limitRef, { lastPostAt: serverTimestamp() });
     await batch.commit();
 
     setShowAdd(false);
