@@ -47,7 +47,9 @@ import {
   increment,
   runTransaction,
   writeBatch,
-  serverTimestamp
+  serverTimestamp,
+  getDoc,
+  where
 } from "firebase/firestore";
 import {
   signInWithEmailAndPassword,
@@ -56,6 +58,7 @@ import {
   onAuthStateChanged,
   updateProfile,
   signInAnonymously,
+  sendEmailVerification,
 } from "firebase/auth";
 
 
@@ -788,9 +791,11 @@ function LoginModal({ onClose, onLoginSuccess }) {
     setSubmitting(true);
     try {
       const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
-      if (cred.user.email !== ADMIN_EMAIL) {
+      if (cred.user.email !== ADMIN_EMAIL || !cred.user.emailVerified) {
         await signOut(auth);
-        setError("This account is not authorized as admin.");
+        setError(cred.user.email === ADMIN_EMAIL && !cred.user.emailVerified
+          ? "Please verify the admin email before signing in."
+          : "This account is not authorized as admin.");
         setSubmitting(false);
         return;
       }
@@ -1211,11 +1216,11 @@ function ReminderMenu({ ev, onClose }) {
   );
 }
 
-function CommentItem({ c, replies, onReply, onReact, anonId }) {
+function CommentItem({ c, replies, onReply, onReact, reactionMap, userId }) {
   const [showReply, setShowReply] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [replyName, setReplyName] = useState("");
-  const reactions = c.reactions || {};
+  const reactions = reactionMap?.[c.id] || {};
 
   return (
     <div className="mb-3">
@@ -1229,7 +1234,7 @@ function CommentItem({ c, replies, onReply, onReact, anonId }) {
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             {REACTION_EMOJIS.map((emo) => {
               const list = reactions[emo] || [];
-              const active = list.includes(anonId);
+              const active = Boolean(userId && list.includes(userId));
               return (
                 <button
                   key={emo}
@@ -1273,7 +1278,7 @@ function CommentItem({ c, replies, onReply, onReact, anonId }) {
   );
 }
 
-function EventDetailModal({ ev, onClose, onComment, onReact, onDelete, onEdit, isAdmin, currentUser, authUser, onPromptSetUser, isBookmarked, onToggleBookmark, isLiked, onToggleLike }) {
+function EventDetailModal({ ev, onClose, onComment, onReact, onDelete, onEdit, isAdmin, currentUser, authUser, onPromptSetUser, isBookmarked, onToggleBookmark, isLiked, onToggleLike, reactionMap }) {
   const [name, setName] = useState(currentUser || "");
   const [text, setText] = useState("");
   const [commentSort, setCommentSort] = useState("newest");
@@ -1287,7 +1292,7 @@ function EventDetailModal({ ev, onClose, onComment, onReact, onDelete, onEdit, i
   const repliesOf = (id) => allComments.filter((cm) => cm.parentId === id);
   const sortedTop = [...topLevel].sort((a, b) => {
     if (commentSort === "popular") {
-      const score = (x) => Object.values(x.reactions || {}).reduce((s, arr) => s + arr.length, 0);
+      const score = (x) => Object.values(reactionMap?.[x.id] || {}).reduce((s, arr) => s + arr.length, 0);
       return score(b) - score(a);
     }
     return (b.createdAt || 0) - (a.createdAt || 0);
@@ -1306,7 +1311,7 @@ function EventDetailModal({ ev, onClose, onComment, onReact, onDelete, onEdit, i
   const submitReply = (parentId, author, replyText) => {
     onComment(ev.id, { id: uid(), author, text: replyText, createdAt: Date.now(), parentId, reactions: {} });
   };
-  const react = (commentId, emoji) => onReact(ev.id, commentId, emoji, anonId);
+  const react = (commentId, emoji) => onReact(ev.id, commentId, emoji);
 
   return (
     <Modal onClose={onClose} wide>
@@ -1460,7 +1465,7 @@ function EventDetailModal({ ev, onClose, onComment, onReact, onDelete, onEdit, i
               <p className="text-xs" style={{ color: THEME.inkSoft }}>No comments yet.</p>
             )}
             {sortedTop.map((cm) => (
-              <CommentItem key={cm.id} c={cm} replies={repliesOf(cm.id)} onReply={submitReply} onReact={react} anonId={anonId} />
+              <CommentItem key={cm.id} c={cm} replies={repliesOf(cm.id)} onReply={submitReply} onReact={react} reactionMap={reactionMap} userId={authUser?.uid} />
             ))}
           </div>
           <form onSubmit={submit} className="flex flex-col sm:flex-row gap-2">
@@ -1977,11 +1982,26 @@ function UserAuthModal({ onClose, onSuccess }) {
     }
     setSubmitting(true);
     try {
+      let user;
       if (mode === "signup") {
         const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
-        await updateProfile(cred.user, { displayName: name.trim() });
+        user = cred.user;
+        await updateProfile(user, { displayName: name.trim() });
+        await sendEmailVerification(user);
+        await signOut(auth);
+        setError("Account created. Please verify your email using the verification link we sent, then sign in.");
+        setSubmitting(false);
+        return;
       } else {
-        await signInWithEmailAndPassword(auth, email.trim(), password);
+        const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+        user = cred.user;
+      }
+      if (!user.emailVerified) {
+        try { await sendEmailVerification(user); } catch {}
+        await signOut(auth);
+        setError("Please verify your email before using Campus Connect. A new verification email was sent.");
+        setSubmitting(false);
+        return;
       }
       onSuccess();
       onClose();
@@ -2207,11 +2227,28 @@ function TicketCard({ t, onOpen }) {
 }
 
 function TicketDetailModal({ t, onClose, onUpdateStatus, onDelete, isAdmin, authUser }) {
+  const [privateContact, setPrivateContact] = useState(null);
   const type = ticketTypeOf(t.type);
   const status = ticketStatusOf(t.status);
   const TypeIcon = type.icon;
   const isOwner = Boolean(authUser && t.reporterUid && authUser.uid === t.reporterUid);
   const canModify = isAdmin || isOwner;
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadPrivateContact = async () => {
+      if (!canModify) { setPrivateContact(null); return; }
+      try {
+        const snap = await getDoc(doc(db, "tickets", t.id, "private", "contact"));
+        if (!cancelled && snap.exists()) setPrivateContact(snap.data());
+      } catch (error) {
+        console.error("Could not load private ticket contact:", error);
+        if (!cancelled) setPrivateContact(null);
+      }
+    };
+    loadPrivateContact();
+    return () => { cancelled = true; };
+  }, [t.id, canModify]);
 
   return (
     <Modal onClose={onClose} wide>
@@ -2268,9 +2305,10 @@ function TicketDetailModal({ t, onClose, onUpdateStatus, onDelete, isAdmin, auth
 
         <div className="p-4 sm:p-6">
           <p style={{ color: THEME.ink, lineHeight: 1.5, fontSize: 14 }}>{t.description || "No further details provided."}</p>
-          {t.contact && <p className="text-xs mt-3" style={{ color: THEME.inkSoft }}>Contact: <strong style={{ color: THEME.ink }}>{t.contact}</strong></p>}
-          {!canModify && !t.contact && (
-            <p className="text-xs mt-3" style={{ color: THEME.inkSoft }}>No contact details were shared. Reach out via the admin if you think this matches something of yours.</p>
+          {canModify && privateContact?.contact && <p className="text-xs mt-3" style={{ color: THEME.inkSoft }}>Contact: <strong style={{ color: THEME.ink }}>{privateContact.contact}</strong></p>}
+          {canModify && privateContact?.reporterEmail && <p className="text-xs mt-1" style={{ color: THEME.inkSoft }}>Email: <strong style={{ color: THEME.ink }}>{privateContact.reporterEmail}</strong></p>}
+          {!canModify && (
+            <p className="text-xs mt-3" style={{ color: THEME.inkSoft }}>Contact details are private and visible only to the report owner and authorized administrators.</p>
           )}
         </div>
       </div>
@@ -2594,6 +2632,7 @@ export default function App() {
   const [showReportTicket, setShowReportTicket] = useState(false);
   const [reportDefaultType, setReportDefaultType] = useState("lost");
   const [selectedTicket, setSelectedTicket] = useState(null);
+  const [commentReactions, setCommentReactions] = useState({});
 
   const isRealUser = Boolean(authUser && !authUser.isAnonymous);
   const realUser = isRealUser ? authUser : null;
@@ -2802,7 +2841,7 @@ useEffect(() => {
       }
       return; // onAuthStateChanged fires again once anon sign-in resolves
     }
-    setIsAdmin(Boolean(user.email === ADMIN_EMAIL));
+    setIsAdmin(Boolean(user.email === ADMIN_EMAIL && user.emailVerified));
     setAuthUser(user);
   });
   return () => unsubscribe();
@@ -2838,19 +2877,33 @@ const addTicket = async (form) => {
       alert("Please sign in to submit a report.");
       return;
     }
+    if (!authUser.emailVerified) {
+      alert("Please verify your email before submitting a report.");
+      return;
+    }
 
     const uid = authUser.uid;
     const ticketRef = doc(collection(db, "tickets"));
+    const privateRef = doc(ticketRef, "private", "contact");
     const limitRef = doc(db, "postLimits", uid);
     const batch = writeBatch(db);
 
     batch.set(ticketRef, {
-      ...form,
+      type: form.type || "lost",
+      title: (form.title || "").trim(),
+      description: (form.description || "").trim(),
+      location: (form.location || "").trim(),
+      photoUrl: form.photoUrl || "",
       status: "open",
-      reportedBy: authUser.displayName || authUser.email || "User",
+      reportedBy: authUser.displayName || "User",
       reporterUid: uid,
-      reporterEmail: authUser.email || "",
       createdAt: Date.now(),
+    });
+
+    batch.set(privateRef, {
+      ownerUid: uid,
+      reporterEmail: authUser.email || "",
+      contact: (form.contact || "").trim(),
     });
 
     batch.set(limitRef, {
@@ -2906,11 +2959,43 @@ const addTicket = async (form) => {
     return () => unsubscribe();
   }, []);
 
+  // Secure comment reactions live in their own collection. The UI derives
+  // counts from this public reaction metadata instead of storing mutable
+  // reaction UID arrays inside the event document.
+  useEffect(() => {
+    if (!selectedEvent?.id) {
+      setCommentReactions({});
+      return;
+    }
+    const q = query(
+      collection(db, "commentReactions"),
+      where("eventId", "==", selectedEvent.id)
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const map = {};
+      snapshot.docs.forEach((d) => {
+        const r = d.data();
+        if (!map[r.commentId]) map[r.commentId] = {};
+        if (!map[r.commentId][r.emoji]) map[r.commentId][r.emoji] = [];
+        map[r.commentId][r.emoji].push(r.uid);
+      });
+      setCommentReactions(map);
+    }, (error) => {
+      console.error("Firestore error (comment reactions):", error);
+      setCommentReactions({});
+    });
+    return () => unsubscribe();
+  }, [selectedEvent?.id]);
+
 const addEvent = async (ev) => {
   try {
     if (!authUser || authUser.isAnonymous) {
       setShowUserAuth(true);
       alert("Please sign in to post an event.");
+      return;
+    }
+    if (!authUser.emailVerified) {
+      alert("Please verify your email before posting an event.");
       return;
     }
 
@@ -2920,19 +3005,23 @@ const addEvent = async (ev) => {
       handleSaveUserName(ev.postedBy);
     }
 
-    await addDoc(collection(db, "events"), {
+    const eventRef = doc(collection(db, "events"));
+    const limitRef = doc(db, "postLimits", uid);
+    const batch = writeBatch(db);
+
+    batch.set(eventRef, {
       ...ev,
-
       posterUid: uid,
-
       views: 0,
       likes: [],
       comments: [],
       reports: [],
       flagged: false,
-
       createdAt: Date.now(),
     });
+
+    batch.set(limitRef, { lastPostAt: serverTimestamp() });
+    await batch.commit();
 
     setShowAdd(false);
 
@@ -2966,6 +3055,10 @@ const addEvent = async (ev) => {
       alert("Please sign in to comment.");
       return;
     }
+    if (!authUser.emailVerified) {
+      alert("Please verify your email before commenting.");
+      return;
+    }
     try {
       const eventRef = doc(db, "events", eventId);
       await updateDoc(eventRef, {
@@ -2978,27 +3071,34 @@ const addEvent = async (ev) => {
 
   // Runs as a Firestore transaction so two people reacting to the same
   // comment at nearly the same instant can't silently overwrite each other.
-  const reactToComment = async (eventId, commentId, emoji, uidStr) => {
+  const reactToComment = async (eventId, commentId, emoji) => {
     if (!authUser || authUser.isAnonymous) {
       setShowUserAuth(true);
       alert("Please sign in to react to a comment.");
       return;
     }
+    if (!authUser.emailVerified) {
+      alert("Please verify your email before reacting.");
+      return;
+    }
+    if (!REACTION_EMOJIS.includes(emoji)) return;
+
     try {
-      const eventRef = doc(db, "events", eventId);
+      const reactionId = `${eventId}_${commentId}_${encodeURIComponent(emoji)}_${authUser.uid}`;
+      const reactionRef = doc(db, "commentReactions", reactionId);
       await runTransaction(db, async (transaction) => {
-        const snap = await transaction.get(eventRef);
-        if (!snap.exists()) return;
-        const data = snap.data();
-        const comments = (data.comments || []).map((c) => {
-          if (c.id !== commentId) return c;
-          const reactions = { ...(c.reactions || {}) };
-          const list = new Set(reactions[emoji] || []);
-          if (list.has(uidStr)) list.delete(uidStr); else list.add(uidStr);
-          reactions[emoji] = Array.from(list);
-          return { ...c, reactions };
-        });
-        transaction.update(eventRef, { comments });
+        const snap = await transaction.get(reactionRef);
+        if (snap.exists()) {
+          transaction.delete(reactionRef);
+        } else {
+          transaction.set(reactionRef, {
+            eventId,
+            commentId,
+            emoji,
+            uid: authUser.uid,
+            createdAt: serverTimestamp(),
+          });
+        }
       });
     } catch (error) {
       console.error("Error reacting to comment:", error);
@@ -4173,6 +4273,7 @@ const addEvent = async (ev) => {
     onToggleBookmark={toggleBookmark}
     isLiked={Boolean(authUser && ((events.find((e) => e.id === selectedEvent.id) || selectedEvent).likes || []).includes(authUser.uid))}
     onToggleLike={toggleLike}
+    reactionMap={commentReactions}
   />
 )}
 
