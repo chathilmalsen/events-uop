@@ -2720,8 +2720,8 @@ export default function App() {
   const effectiveDark = themeMode === "dark" || (themeMode === "system" && systemDark);
   THEME = effectiveDark ? DARK_THEME : LIGHT_THEME;
 
-  const anonId = getAnonId();
   const now = new Date();
+  
   const [calMonth, setCalMonth] = useState(now.getMonth());
   const [calYear, setCalYear] = useState(now.getFullYear());
 
@@ -2753,11 +2753,12 @@ export default function App() {
     });
   };
 
-  const toggleLike = async (ev) => {
+const toggleLike = async (ev) => {
+    if (!authUser) return; // anon sign-in hasn't resolved yet
     try {
       const eventRef = doc(db, "events", ev.id);
-      const liked = (ev.likes || []).includes(anonId);
-      await updateDoc(eventRef, { likes: liked ? arrayRemove(anonId) : arrayUnion(anonId) });
+      const liked = (ev.likes || []).includes(authUser.uid);
+      await updateDoc(eventRef, { likes: liked ? arrayRemove(authUser.uid) : arrayUnion(authUser.uid) });
     } catch (error) {
       console.error("Error toggling like:", error);
     }
@@ -4059,7 +4060,7 @@ const addEvent = async (ev) => {
                           <EventCard
                             key={e.id} ev={e} onOpen={openEvent}
                             isBookmarked={bookmarks.includes(e.id)} onToggleBookmark={toggleBookmark}
-                            isLiked={(e.likes || []).includes(anonId)} onToggleLike={toggleLike}
+                            isLiked={authUser && (e.likes || []).includes(authUser.uid)} onToggleLike={toggleLike}
                             isTrending={trendingIds.has(e.id) && !isPastEvent(e)}
                           />
                         ))}
@@ -4103,7 +4104,7 @@ const addEvent = async (ev) => {
     onPromptSetUser={() => setShowUserModal(true)}
     isBookmarked={bookmarks.includes(selectedEvent.id)}
     onToggleBookmark={toggleBookmark}
-    isLiked={((events.find((e) => e.id === selectedEvent.id) || selectedEvent).likes || []).includes(anonId)}
+    isLiked={Boolean(authUser && ((events.find((e) => e.id === selectedEvent.id) || selectedEvent).likes || []).includes(authUser.uid))}
     onToggleLike={toggleLike}
   />
 )}
