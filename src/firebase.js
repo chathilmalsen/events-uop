@@ -11,13 +11,28 @@ import {
   ReCaptchaV3Provider,
 } from "firebase/app-check";
 
+// Firebase web config values are not secret — your actual security comes
+// from Firestore/Storage security rules, not from hiding this object.
+// These hardcoded values are used as a fallback so the app still works
+// even if VITE_FIREBASE_* environment variables aren't set on whatever
+// host is serving the build (e.g. Render). If the env vars ARE set
+// (as they are for the Firebase Hosting build), those take priority.
+const FALLBACK_FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBx0NKWqs18QtM0TbcLtRxyLdNoagjRVNE",
+  authDomain: "university-events-847c1.firebaseapp.com",
+  projectId: "university-events-847c1",
+  storageBucket: "university-events-847c1.firebasestorage.app",
+  messagingSenderId: "539838284880",
+  appId: "1:539838284880:web:65a7491bb68580a7ab7d55",
+};
+
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || FALLBACK_FIREBASE_CONFIG.apiKey,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || FALLBACK_FIREBASE_CONFIG.authDomain,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || FALLBACK_FIREBASE_CONFIG.projectId,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || FALLBACK_FIREBASE_CONFIG.storageBucket,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || FALLBACK_FIREBASE_CONFIG.messagingSenderId,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || FALLBACK_FIREBASE_CONFIG.appId,
 };
 
 const requiredKeys = [
