@@ -60,6 +60,7 @@ import {
   onAuthStateChanged,
   signInAnonymously,
   sendEmailVerification,
+  sendPasswordResetEmail,
   reload,
 } from "firebase/auth";
 
@@ -2007,6 +2008,7 @@ function UserAuthModal({ onClose, onSuccess }) {
   const [submitting, setSubmitting] = useState(false);
   const [resending, setResending] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  const [resettingPassword, setResettingPassword] = useState(false);
   const inputStyle = inputStyleFn();
 
   useEffect(() => {
@@ -2168,6 +2170,29 @@ function UserAuthModal({ onClose, onSuccess }) {
       setSubmitting(false);
     }
   };
+  
+  const handleForgotPassword = async () => {
+    setError("");
+    setInfo("");
+
+    if (!email.trim()) {
+      setError("Enter your email address above, then tap 'Forgot password?' again.");
+      return;
+    }
+
+    setResettingPassword(true);
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+      setInfo(
+        "Password reset email sent. Check your Inbox and Spam/Junk folder for a link to set a new password."
+      );
+    } catch (err) {
+      console.error("Campus Connect password reset error:", err);
+      setError(friendlyAuthError(err));
+    } finally {
+      setResettingPassword(false);
+    }
+  };
 
   const resendVerificationEmail = async () => {
     setError("");
@@ -2311,8 +2336,7 @@ function UserAuthModal({ onClose, onSuccess }) {
             required
           />
         </Field>
-
-        <Field label="Password" required>
+<Field label="Password" required>
           <input
             type="password"
             style={inputStyle}
@@ -2324,6 +2348,20 @@ function UserAuthModal({ onClose, onSuccess }) {
             required
           />
         </Field>
+
+        {mode === "signin" && (
+          <div className="flex justify-end mb-3.5 -mt-2">
+            <button
+              type="button"
+              onClick={handleForgotPassword}
+              disabled={resettingPassword}
+              className="text-[11px] font-semibold disabled:opacity-50"
+              style={{ color: THEME.goldDeep }}
+            >
+              {resettingPassword ? "Sending reset email…" : "Forgot password?"}
+            </button>
+          </div>
+        )}
 
         {mode === "signup" && (
           <Field label="Confirm Password" required>
