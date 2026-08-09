@@ -29,7 +29,7 @@ import {
 } from "react-icons/ri";
 
 // --- FIREBASE IMPORTS ---
-import { db, auth } from "./firebase";
+import { db, auth, storage } from "./firebase";
 // Posters/photos are compressed client-side and stored as base64 directly in
 // the Firestore document (Firebase Storage isn't used in this build — see
 // compressImage()/handlePosterFile() below).
@@ -51,6 +51,7 @@ import {
   getDoc,
   where
 } from "firebase/firestore";
+import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -63,7 +64,30 @@ import {
 } from "firebase/auth";
 
 
-const ADMIN_EMAIL = "ktchathilmalsencm@gmail.com";
+// Admin authorization is server-issued via a Firebase Auth custom claim.
+// Do not put an admin email/role in the client bundle.
+async function refreshAdminClaim(user) {
+  if (!user || user.isAnonymous) return false;
+  try {
+    const tokenResult = await user.getIdTokenResult(true);
+    return tokenResult.claims.admin === true;
+  } catch (error) {
+    console.warn("Could not refresh admin claim:", error);
+    return false;
+  }
+}
+
+async function uploadCompressedImage(file, folder, uid) {
+  if (!file?.type?.startsWith("image/")) throw new Error("Please choose an image file.");
+  if (file.size > 8 * 1024 * 1024) throw new Error("Image must be under 8MB.");
+  const compressed = await compressImage(file, 1600, 0.82);
+  if (compressed.size > 5 * 1024 * 1024) throw new Error("Compressed image is still too large.");
+  const ext = "jpg";
+  const path = `${folder}/${uid}/${crypto.randomUUID()}.${ext}`;
+  const objectRef = storageRef(storage, path);
+  await uploadBytes(objectRef, compressed, { contentType: "image/jpeg", cacheControl: "public,max-age=31536000,immutable" });
+  return getDownloadURL(objectRef);
+}
 const INSTAGRAM_URL = "https://www.instagram.com/chathilmkt?igsh=MTgwZGdlbnVwMzQzeA%3D%3D&utm_source=qr";
 const YOUTUBE_URL = "https://youtube.com/@chathilmalsen?si=ogQ5UF4PWG1ktGfY";
 
@@ -799,11 +823,16 @@ function LoginModal({ onClose, onLoginSuccess }) {
         console.warn("Could not refresh admin verification state/token:", refreshErr);
       }
       const adminUser = auth.currentUser || cred.user;
-      if (adminUser.email !== ADMIN_EMAIL || !adminUser.emailVerified) {
+      if (!adminUser.emailVerified) {
         await signOut(auth);
-        setError(cred.user.email === ADMIN_EMAIL && !cred.user.emailVerified
-          ? "Please verify the admin email before signing in."
-          : "This account is not authorized as admin.");
+        setError("Please verify the admin email before signing in.");
+        setSubmitting(false);
+        return;
+      }
+      const admin = await refreshAdminClaim(adminUser);
+      if (!admin) {
+        await signOut(auth);
+        setError("This account is not authorized as admin.");
         setSubmitting(false);
         return;
       }
@@ -938,11 +967,12 @@ function AddOrEditEventModal({ onClose, onSubmit, initialData, currentUser, even
     setUploading(true);
     setError("");
     try {
-      // Resize + re-encode the image client-side, then store it as base64
-      // directly on the event document (no Firebase Storage in this build).
-      const compressed = await compressImage(file);
-      const dataUrl = await fileToDataUrl(compressed);
-      setForm((f) => ({ ...f, posterUrl: dataUrl }));
+      const user = auth.currentUser;
+      if (!user || user.isAnonymous || !user.emailVerified) {
+        throw new Error("Please sign in with a verified account before uploading.");
+      }
+      const url = await uploadCompressedImage(file, "events", user.uid);
+      setForm((f) => ({ ...f, posterUrl: url }));
     } catch (err) {
       setError("Error processing image file. Please try a different image.");
     }
@@ -2397,9 +2427,12 @@ function ReportTicketModal({ onClose, onSubmit, authUser, defaultType }) {
     setUploading(true);
     setError("");
     try {
-      const compressed = await compressImage(file);
-      const dataUrl = await fileToDataUrl(compressed);
-      setForm((f) => ({ ...f, photoUrl: dataUrl }));
+      const user = auth.currentUser;
+      if (!user || user.isAnonymous || !user.emailVerified) {
+        throw new Error("Please sign in with a verified account before uploading.");
+      }
+      const url = await uploadCompressedImage(file, "tickets", user.uid);
+      setForm((f) => ({ ...f, photoUrl: url }));
     } catch {
       setError("Error processing image file. Please try a different image.");
     }
@@ -2538,13 +2571,12 @@ function TicketDetailModal({ t, onClose, onUpdateStatus, onDelete, isAdmin, auth
   const type = ticketTypeOf(t.type);
   const status = ticketStatusOf(t.status);
   const TypeIcon = type.icon;
-  const isOwner = Boolean(authUser && t.reporterUid && authUser.uid === t.reporterUid);
-  const canModify = isAdmin || isOwner;
+  const canModify = isAdmin || Boolean(authUser && privateContact?.ownerUid === authUser.uid);
 
   useEffect(() => {
     let cancelled = false;
     const loadPrivateContact = async () => {
-      if (!canModify) { setPrivateContact(null); return; }
+      if (!authUser && !isAdmin) { setPrivateContact(null); return; }
       try {
         const snap = await getDoc(doc(db, "tickets", t.id, "private", "contact"));
         if (!cancelled && snap.exists()) setPrivateContact(snap.data());
@@ -2555,7 +2587,7 @@ function TicketDetailModal({ t, onClose, onUpdateStatus, onDelete, isAdmin, auth
     };
     loadPrivateContact();
     return () => { cancelled = true; };
-  }, [t.id, canModify]);
+  }, [t.id, authUser?.uid, isAdmin]);
 
   return (
     <Modal onClose={onClose} wide>
@@ -3185,7 +3217,8 @@ useEffect(() => {
     }
 
     const refreshedUser = auth.currentUser || user;
-    setIsAdmin(Boolean(refreshedUser.email === ADMIN_EMAIL && refreshedUser.emailVerified));
+    const admin = await refreshAdminClaim(refreshedUser);
+    setIsAdmin(admin);
     setAuthUser(refreshedUser);
   });
   return () => unsubscribe();
@@ -3213,7 +3246,7 @@ useEffect(() => {
 
     const refreshedUser = auth.currentUser || user;
     setAuthUser(refreshedUser);
-    setIsAdmin(Boolean(refreshedUser.email === ADMIN_EMAIL && refreshedUser.emailVerified));
+    setIsAdmin(await refreshAdminClaim(refreshedUser));
     return refreshedUser;
   };
 
@@ -3261,6 +3294,7 @@ const addTicket = async (form) => {
     const uid = currentUser.uid;
     const ticketRef = doc(collection(db, "tickets"));
     const privateRef = doc(ticketRef, "private", "contact");
+    const limitRef = doc(db, "postLimits", uid);
     const batch = writeBatch(db);
 
     batch.set(ticketRef, {
@@ -3271,7 +3305,6 @@ const addTicket = async (form) => {
       photoUrl: form.photoUrl || "",
       status: "open",
       reportedBy: currentUser.displayName || "User",
-      reporterUid: uid,
       createdAt: Date.now(),
     });
 
@@ -3280,6 +3313,7 @@ const addTicket = async (form) => {
       reporterEmail: currentUser.email || "",
       contact: (form.contact || "").trim(),
     });
+    batch.set(limitRef, { lastPostAt: serverTimestamp() });
 
     await batch.commit();
     setShowReportTicket(false);
@@ -3383,6 +3417,7 @@ const addEvent = async (ev) => {
     }
 
     const eventRef = doc(collection(db, "events"));
+    const limitRef = doc(db, "postLimits", uid);
     const batch = writeBatch(db);
 
     batch.set(eventRef, {
@@ -3396,6 +3431,7 @@ const addEvent = async (ev) => {
       createdAt: Date.now(),
     });
 
+    batch.set(limitRef, { lastPostAt: serverTimestamp() });
     await batch.commit();
 
     setShowAdd(false);
@@ -4298,7 +4334,7 @@ const addEvent = async (ev) => {
 
       const uid = authUser.uid;
       const messageRef = doc(collection(db, "messages"));
-      const limitRef = doc(db, "postLimits", uid);
+      const limitRef = doc(db, "messageLimits", uid);
       const batch = writeBatch(db);
 
       batch.set(messageRef, {

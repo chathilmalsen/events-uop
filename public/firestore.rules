@@ -1,0 +1,468 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================================================
+    // AUTHORIZATION
+    // =========================================================
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isRealUser() {
+      return isSignedIn()
+        && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
+    function isVerifiedUser() {
+      return isRealUser()
+        && request.auth.token.email_verified == true;
+    }
+
+    // The admin role is issued server-side as a Firebase Auth custom claim.
+    // Never trust an email/role field supplied by the browser.
+    function isAdmin() {
+      return isVerifiedUser()
+        && request.auth.token.admin == true;
+    }
+
+    function isOwner(field) {
+      return isSignedIn()
+        && resource.data[field] == request.auth.uid;
+    }
+
+    function onlyChanged(fields) {
+      return request.resource.data.diff(resource.data)
+        .affectedKeys().hasOnly(fields);
+    }
+
+    function validString(value, maxLength) {
+      return value is string
+        && value.size() <= maxLength;
+    }
+
+    function validOptionalUrl(value) {
+      return value == ''
+        || (
+          value is string
+          && value.size() <= 2000
+          && value.matches('^https?://.+')
+        );
+    }
+
+    // Backward compatibility for existing events/tickets that still contain
+    // compressed base64 images. New uploads from the upgraded client use
+    // Firebase Storage URLs instead.
+    function validOptionalMediaUrl(value) {
+      return value == ''
+        || (
+          value is string
+          && value.size() <= 900000
+          && value.matches('^https?://.+')
+        )
+        || (
+          value is string
+          && value.size() <= 900000
+          && value.matches('^data:image/.*;base64,.+')
+        );
+    }
+
+    function validFaculty(value) {
+      return value in [
+        'engineering',
+        'medicine',
+        'management',
+        'arts',
+        'science',
+        'dental',
+        'agriculture',
+        'allied health sciences',
+        'veterniary and animal medicine',
+        ''
+      ];
+    }
+
+    function validCategory(value) {
+      return value in [
+        'musical',
+        'notice',
+        'social',
+        'career',
+        'industrial',
+        'academic',
+        'sports',
+        'workshop',
+        'competition',
+        'charity',
+        'research',
+        'environmental',
+        'volunteer',
+        'cultural',
+        'awards',
+        'seminar',
+        ''
+      ];
+    }
+
+    function validTicketType(value) {
+      return value in ['lost', 'found', 'facility'];
+    }
+
+    function validTicketStatus(value) {
+      return value in ['open', 'in_progress', 'resolved'];
+    }
+
+    function validPriceType(value) {
+      return value in ['free', 'paid'];
+    }
+
+    function validMode(value) {
+      return value in ['offline', 'online'];
+    }
+
+    function validDate(value) {
+      return value == ''
+        || (value is string && value.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'));
+    }
+
+    function validTime(value) {
+      return value == ''
+        || (value is string && value.matches('^[0-9]{2}:[0-9]{2}$'));
+    }
+
+    function eventPostLimitSatisfied() {
+      return getAfter(
+          /databases/$(database)/documents/postLimits/$(request.auth.uid)
+        ).data.lastPostAt == request.time
+        && (
+          !exists(/databases/$(database)/documents/postLimits/$(request.auth.uid))
+          || request.time >= get(
+            /databases/$(database)/documents/postLimits/$(request.auth.uid)
+          ).data.lastPostAt + duration.value(15, 's')
+        );
+    }
+
+    function messageLimitSatisfied() {
+      return getAfter(
+          /databases/$(database)/documents/messageLimits/$(request.auth.uid)
+        ).data.lastPostAt == request.time
+        && (
+          !exists(/databases/$(database)/documents/messageLimits/$(request.auth.uid))
+          || request.time >= get(
+            /databases/$(database)/documents/messageLimits/$(request.auth.uid)
+          ).data.lastPostAt + duration.value(60, 's')
+        );
+    }
+
+    // =========================================================
+    // EVENT POST LIMITS
+    // =========================================================
+
+    match /postLimits/{uid} {
+      allow read: if isVerifiedUser() && request.auth.uid == uid;
+
+      // This document is intentionally writable only as part of the
+      // same batch that creates an event or ticket.
+      allow create: if isVerifiedUser()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['lastPostAt'])
+        && request.resource.data.lastPostAt == request.time;
+
+      allow update: if isVerifiedUser()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['lastPostAt'])
+        && request.resource.data.lastPostAt == request.time
+        && request.time >= resource.data.lastPostAt + duration.value(15, 's');
+
+      allow delete: if false;
+    }
+
+    // =========================================================
+    // MESSAGE RATE LIMITS
+    // =========================================================
+
+    match /messageLimits/{uid} {
+      allow read: if false;
+
+      allow create: if isVerifiedUser()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['lastPostAt'])
+        && request.resource.data.lastPostAt == request.time;
+
+      allow update: if isVerifiedUser()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['lastPostAt'])
+        && request.resource.data.lastPostAt == request.time
+        && request.time >= resource.data.lastPostAt + duration.value(60, 's');
+
+      allow delete: if false;
+    }
+
+    // =========================================================
+    // EVENTS
+    // =========================================================
+
+    match /events/{eventId} {
+      allow read: if true;
+
+      allow create: if isVerifiedUser()
+        && eventPostLimitSatisfied()
+        && request.resource.data.posterUid == request.auth.uid
+        && validString(request.resource.data.title, 200)
+        && request.resource.data.title.size() > 0
+        && validString(request.resource.data.description, 6000)
+        && validString(request.resource.data.location, 300)
+        && validString(request.resource.data.organizer, 200)
+        && validString(request.resource.data.contact, 320)
+        && validString(request.resource.data.postedBy, 100)
+        && validFaculty(request.resource.data.faculty)
+        && validCategory(request.resource.data.category)
+        && validDate(request.resource.data.date)
+        && validTime(request.resource.data.startTime)
+        && validTime(request.resource.data.endTime)
+        && validPriceType(request.resource.data.priceType)
+        && validMode(request.resource.data.mode)
+        && validOptionalUrl(request.resource.data.registrationLink)
+        && validOptionalMediaUrl(request.resource.data.posterUrl)
+        && request.resource.data.views == 0
+        && request.resource.data.likes.size() == 0
+        && request.resource.data.comments.size() == 0
+        && request.resource.data.reports.size() == 0
+        && request.resource.data.flagged == false;
+
+      allow update: if (isAdmin() || isOwner('posterUid'))
+        && request.resource.data.posterUid == resource.data.posterUid
+        && validString(request.resource.data.title, 200)
+        && request.resource.data.title.size() > 0
+        && validString(request.resource.data.description, 6000)
+        && validString(request.resource.data.location, 300)
+        && validString(request.resource.data.organizer, 200)
+        && validString(request.resource.data.contact, 320)
+        && validString(request.resource.data.postedBy, 100)
+        && validFaculty(request.resource.data.faculty)
+        && validCategory(request.resource.data.category)
+        && validDate(request.resource.data.date)
+        && validTime(request.resource.data.startTime)
+        && validTime(request.resource.data.endTime)
+        && validPriceType(request.resource.data.priceType)
+        && validMode(request.resource.data.mode)
+        && validOptionalUrl(request.resource.data.registrationLink)
+        && validOptionalMediaUrl(request.resource.data.posterUrl)
+        && request.resource.data.likes == resource.data.likes
+        && request.resource.data.views == resource.data.views
+        && request.resource.data.comments == resource.data.comments
+        && request.resource.data.reports == resource.data.reports
+        && request.resource.data.flagged == resource.data.flagged;
+
+      // View counter: one increment at a time.
+      // For high-integrity analytics, move this to a backend function later.
+      allow update: if isSignedIn()
+        && onlyChanged(['views'])
+        && request.resource.data.views == resource.data.views + 1;
+
+      // Likes: only the signed-in user's UID can be added/removed.
+      allow update: if isVerifiedUser()
+        && onlyChanged(['likes'])
+        && (
+          (
+            request.resource.data.likes.size() == resource.data.likes.size() + 1
+            && request.resource.data.likes.hasAll(resource.data.likes)
+            && request.resource.data.likes.hasOnly(
+              resource.data.likes.concat([request.auth.uid])
+            )
+          )
+          ||
+          (
+            request.resource.data.likes.size() == resource.data.likes.size() - 1
+            && resource.data.likes.hasAll(request.resource.data.likes)
+            && resource.data.likes.hasOnly(
+              request.resource.data.likes.concat([request.auth.uid])
+            )
+          )
+        );
+
+      // Append exactly one comment. Comment reactions are separate documents.
+      allow update: if isVerifiedUser()
+        && onlyChanged(['comments'])
+        && request.resource.data.comments.size() == resource.data.comments.size() + 1
+        && request.resource.data.comments.size() <= 500
+        && request.resource.data.comments.hasAll(resource.data.comments)
+        && request.resource.data.comments[request.resource.data.comments.size() - 1].author is string
+        && request.resource.data.comments[request.resource.data.comments.size() - 1].author.size() > 0
+        && request.resource.data.comments[request.resource.data.comments.size() - 1].author.size() <= 100
+        && request.resource.data.comments[request.resource.data.comments.size() - 1].text is string
+        && request.resource.data.comments[request.resource.data.comments.size() - 1].text.size() > 0
+        && request.resource.data.comments[request.resource.data.comments.size() - 1].text.size() <= 1000;
+
+      // Add one report UID; users cannot clear other reports.
+      allow update: if isVerifiedUser()
+        && onlyChanged(['reports', 'flagged'])
+        && request.resource.data.reports.size() == resource.data.reports.size() + 1
+        && request.resource.data.reports.hasAll(resource.data.reports)
+        && request.resource.data.reports.hasOnly(
+          resource.data.reports.concat([request.auth.uid])
+        )
+        && request.resource.data.flagged == true;
+
+      allow update: if isAdmin()
+        && onlyChanged(['flagged', 'reports']);
+
+      allow delete: if isAdmin() || isOwner('posterUid');
+    }
+
+    // =========================================================
+    // COMMENT REACTIONS
+    // =========================================================
+
+    match /commentReactions/{reactionId} {
+      allow read: if isSignedIn();
+
+      allow create: if isVerifiedUser()
+        && request.resource.data.keys().hasOnly([
+          'eventId', 'commentId', 'emoji', 'uid', 'createdAt'
+        ])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.eventId is string
+        && request.resource.data.commentId is string
+        && request.resource.data.emoji in ['👍', '❤️', '😂', '😮', '😢']
+        && request.resource.data.createdAt == request.time;
+
+      allow delete: if isVerifiedUser()
+        && resource.data.uid == request.auth.uid;
+
+      allow update: if false;
+    }
+
+    // =========================================================
+    // LOST / FOUND / FACILITY TICKETS
+    // =========================================================
+
+    match /tickets/{ticketId} {
+      allow read: if true;
+
+      allow create: if isVerifiedUser()
+        && eventPostLimitSatisfied()
+        && request.resource.data.keys().hasOnly([
+          'type', 'title', 'description', 'location', 'photoUrl',
+          'status', 'reportedBy', 'createdAt'
+        ])
+        && validTicketType(request.resource.data.type)
+        && request.resource.data.status == 'open'
+        && validString(request.resource.data.title, 200)
+        && validString(request.resource.data.description, 3000)
+        && validString(request.resource.data.location, 300)
+        && validString(request.resource.data.reportedBy, 100)
+        && validOptionalMediaUrl(request.resource.data.photoUrl)
+        && request.resource.data.createdAt is int;
+
+      // Admins can change only ticket status.
+      allow update: if isAdmin()
+        && onlyChanged(['status'])
+        && validTicketStatus(request.resource.data.status);
+
+      // Owners can change only status. Ownership is stored privately so
+      // the public ticket document does not expose a Firebase UID.
+      allow update: if isVerifiedUser()
+        && get(
+          /databases/$(database)/documents/tickets/$(ticketId)/private/contact
+        ).data.ownerUid == request.auth.uid
+        && onlyChanged(['status'])
+        && validTicketStatus(request.resource.data.status);
+
+      allow delete: if isAdmin()
+        || (
+          isVerifiedUser()
+          && get(
+            /databases/$(database)/documents/tickets/$(ticketId)/private/contact
+          ).data.ownerUid == request.auth.uid
+        );
+    }
+
+    // =========================================================
+    // PRIVATE TICKET CONTACT
+    // =========================================================
+
+    match /tickets/{ticketId}/private/{privateId} {
+      allow read: if isAdmin()
+        || (
+          isVerifiedUser()
+          && resource.data.ownerUid == request.auth.uid
+        );
+
+      allow create: if isVerifiedUser()
+        && privateId == 'contact'
+        && request.resource.data.keys().hasOnly([
+          'ownerUid', 'reporterEmail', 'contact'
+        ])
+        && request.resource.data.ownerUid == request.auth.uid
+        && validString(request.resource.data.reporterEmail, 320)
+        && validString(request.resource.data.contact, 300);
+
+      allow update: if isAdmin()
+        || (
+          isVerifiedUser()
+          && resource.data.ownerUid == request.auth.uid
+          && request.resource.data.ownerUid == resource.data.ownerUid
+          && validString(request.resource.data.reporterEmail, 320)
+          && validString(request.resource.data.contact, 300)
+        );
+
+      allow delete: if isAdmin()
+        || (
+          isVerifiedUser()
+          && resource.data.ownerUid == request.auth.uid
+        );
+    }
+
+    // =========================================================
+    // CONTACT / SUGGESTION MESSAGES
+    // =========================================================
+
+    match /messages/{messageId} {
+      allow create: if isVerifiedUser()
+        && messageLimitSatisfied()
+        && request.resource.data.keys().hasOnly([
+          'name', 'email', 'type', 'message', 'createdAt'
+        ])
+        && validString(request.resource.data.name, 100)
+        && validString(request.resource.data.email, 320)
+        && request.resource.data.type in [
+          'Suggestion', 'Collaboration', 'Feedback', 'Contact Developer'
+        ]
+        && validString(request.resource.data.message, 3000)
+        && request.resource.data.message.size() > 0
+        && request.resource.data.createdAt == request.time;
+
+      allow read: if false;
+      allow update, delete: if false;
+    }
+
+    // =========================================================
+    // USER PROFILES
+    // =========================================================
+
+    match /users/{uid} {
+      allow read: if isAdmin()
+        || (isSignedIn() && request.auth.uid == uid);
+
+      allow create: if isVerifiedUser()
+        && request.auth.uid == uid;
+
+      allow update: if isAdmin()
+        || (isVerifiedUser() && request.auth.uid == uid);
+
+      allow delete: if isAdmin()
+        || (isVerifiedUser() && request.auth.uid == uid);
+    }
+
+    // =========================================================
+    // DEFAULT DENY
+    // =========================================================
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

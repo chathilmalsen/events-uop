@@ -1,0 +1,47 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isVerifiedUser() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider != 'anonymous'
+        && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isVerifiedUser() && request.auth.token.admin == true;
+    }
+
+    function validImageUpload() {
+      return request.resource != null
+        && request.resource.contentType.matches('image/.*')
+        && request.resource.size <= 5 * 1024 * 1024;
+    }
+
+    // Publicly readable optimized images. Only the owner of the UID path
+    // or an admin can upload/replace/delete them.
+    match /events/{uid}/{fileName} {
+      allow read: if true;
+      allow create, update: if isVerifiedUser()
+        && (request.auth.uid == uid || isAdmin())
+        && validImageUpload();
+      allow delete: if isVerifiedUser()
+        && (request.auth.uid == uid || isAdmin());
+    }
+
+    match /tickets/{uid}/{fileName} {
+      allow read: if true;
+      allow create, update: if isVerifiedUser()
+        && (request.auth.uid == uid || isAdmin())
+        && validImageUpload();
+      allow delete: if isVerifiedUser()
+        && (request.auth.uid == uid || isAdmin());
+    }
+
+    // Deny every other storage path.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

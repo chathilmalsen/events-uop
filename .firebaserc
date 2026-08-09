@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "university-events-847c1"
+  },
+  "targets": {
+    "university-events-847c1": {
+      "hosting": {
+        "campusconnect": [
+          "campusconnect-cm"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
