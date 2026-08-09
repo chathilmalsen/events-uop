@@ -3290,11 +3290,9 @@ const addTicket = async (form) => {
       );
       return;
     }
-
-    const uid = currentUser.uid;
+const uid = currentUser.uid;
     const ticketRef = doc(collection(db, "tickets"));
     const privateRef = doc(ticketRef, "private", "contact");
-    const limitRef = doc(db, "postLimits", uid);
     const batch = writeBatch(db);
 
     batch.set(ticketRef, {
@@ -3305,6 +3303,7 @@ const addTicket = async (form) => {
       photoUrl: form.photoUrl || "",
       status: "open",
       reportedBy: currentUser.displayName || "User",
+      reporterUid: uid,
       createdAt: Date.now(),
     });
 
@@ -3313,9 +3312,9 @@ const addTicket = async (form) => {
       reporterEmail: currentUser.email || "",
       contact: (form.contact || "").trim(),
     });
-    batch.set(limitRef, { lastPostAt: serverTimestamp() });
 
     await batch.commit();
+    
     setShowReportTicket(false);
   } catch (error) {
     console.error("Error adding ticket:", error);
